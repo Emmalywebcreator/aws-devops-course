@@ -25,9 +25,9 @@ Run the same `aws-devops-platform` image you ship to ECS on an EKS cluster — d
 | Public IPv4 on 2 nodes | yes | USD 0.005/hour each | ≤ 7 h | ≤ USD 0.07 |
 | Classic Load Balancer (Lab 4 + incident) | **yes** | ≈ USD 0.025/hour + USD 0.008/GB processed | ≤ 3 h | ≤ USD 0.08 |
 | Public IPv4 on the load balancer | yes | USD 0.005/hour per IP (≈ 2 IPs) | ≤ 3 h | ≤ USD 0.03 |
-| NAT Gateway | — | **none: disabled in the cluster config** | 0 | USD 0 |
+| NAT Gateway | would be **yes** | ≈ USD 0.045/hour + USD 0.045/GB processed — eksctl's **default** creates one (≈ USD 1.08/day idle); **disabled in the cluster config** | 0 | USD 0 |
 
-- **Pricing assumptions:** Region `us-east-1`; on-demand Linux; Kubernetes **1.36** (in EKS standard support until 2 Aug 2027 — extended support costs more: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html); no free tier. Unit prices are the author's figures, **not re-checked** against https://aws.amazon.com/eks/pricing/, https://aws.amazon.com/ec2/pricing/on-demand/, https://aws.amazon.com/elasticloadbalancing/pricing/, https://aws.amazon.com/vpc/pricing/ (checked: not yet).
+- **Pricing assumptions:** Region `us-east-1`; on-demand Linux; Kubernetes **1.36** (in EKS standard support until 2 Aug 2027 — extended support costs more: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html); no free tier. Two Availability Zones (pinned in `cluster.yaml`), so the load balancer has ≈ 2 public IPs; data processed by the load balancer is negligible at lab traffic (< 1 GB). Unit prices are the author's figures as of 2026-11-17, **not yet checked** against https://aws.amazon.com/eks/pricing/, https://aws.amazon.com/ec2/pricing/on-demand/, https://aws.amazon.com/elasticloadbalancing/pricing/, https://aws.amazon.com/vpc/pricing/.
 - **Total if you follow teardown:** under **USD 1.60**.
 - **If you skip teardown: ≈ USD 5.60/day** (0.10 + 0.083 + 0.004 + 0.01 + 0.025 + 0.01 = 0.232/hour × 24). This is the most expensive thing to forget in the course — Lab 1 has you set a reminder.
 
@@ -81,7 +81,7 @@ eksctl version                    # expect: 0.231.0
 
 (macOS/ARM: replace `linux/amd64` / `Linux_amd64` with your platform from the same release.)
 
-Create `k8s/cluster.yaml`:
+Create `infra/eks/cluster.yaml` (kept **out of** `k8s/`, which holds only Kubernetes manifests — kubectl can't apply an eksctl config):
 
 ```yaml
 apiVersion: eksctl.io/v1alpha5
@@ -94,6 +94,7 @@ metadata:
     course: aws-devops-platform
     phase: "3"
     env: eks-lab
+availabilityZones: ["us-east-1a", "us-east-1b"]   # pinned: fixes subnet/IP count and avoids AZs without t3 capacity
 vpc:
   nat:
     gateway: Disable          # no NAT Gateway — nodes live in public subnets
@@ -113,7 +114,7 @@ managedNodeGroups:
 **Set a phone reminder for 7 hours from now: "DELETE EKS CLUSTER".** Then:
 
 ```bash
-eksctl create cluster -f k8s/cluster.yaml        # ~15–20 minutes; writes your kubeconfig
+eksctl create cluster -f infra/eks/cluster.yaml        # ~15–20 minutes; writes your kubeconfig
 ```
 
 - **Expected result:** eksctl ends with `EKS cluster "orders-eks" in "us-east-1" region is ready`.
@@ -129,7 +130,7 @@ aws ec2 describe-nat-gateways --filter Name=vpc-id,Values="$VPC_ID" \
 # expect: no output — no NAT Gateway
 ```
 
-- **Teardown command:** `eksctl delete cluster -f k8s/cluster.yaml --wait` (at module end — section 9 has the full, ordered version).
+- **Teardown command:** `eksctl delete cluster -f infra/eks/cluster.yaml --wait` (at module end — section 9 has the full, ordered version).
 - **Cost note:** ≈ USD 0.20/hour from this moment until deletion.
 
 ### Lab 2 — Deploy the same image
@@ -253,7 +254,7 @@ kubectl -n orders rollout status deployment/orders-api --timeout=120s
 ### Lab 4 — Expose it to the internet
 
 - **Region:** `us-east-1`
-- **Task:** change `k8s/service.yaml` to `type: LoadBalancer` and apply. Without extra controllers installed, EKS's built-in AWS cloud provider creates a **Classic Load Balancer** for this Service. (TODO(verify): confirm on Kubernetes 1.36 / EKS that the built-in controller still provisions a CLB by default — https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html.)
+- **Task:** change `k8s/service.yaml` to `type: LoadBalancer` and apply. Without extra controllers installed, EKS's built-in AWS cloud provider creates a **Classic Load Balancer** for this Service. (Source: https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html — without the AWS Load Balancer Controller, a `LoadBalancer` Service gets a Classic Load Balancer.)
 
 ```bash
 sed -i 's/type: ClusterIP/type: LoadBalancer/' k8s/service.yaml
@@ -288,7 +289,7 @@ bash "$COURSE/phases/phase-3/04-kubernetes-eks/labs/incident-no-endpoints/break.
 ```
 
 - **Symptom you will see:** `curl http://$LB_HOST/health` fails or returns 503 within a minute; `kubectl -n orders get pods` shows pods `Running`.
-- **Your task:** using only `kubectl get/describe` (pods, service, endpointslices, deployment, replicasets), `kubectl get events`, `kubectl rollout status/history` and `kubectl logs`, find **every** cause. Fix them with `kubectl apply -f k8s/` from your repo (your manifests are the source of truth — don't hand-edit live objects). Write a 3-line incident note.
+- **Your task:** using only `kubectl get/describe` (pods, service, endpointslices, deployment, replicasets), `kubectl get events`, `kubectl rollout status/history` and `kubectl logs`, find **every** cause. Fix them by re-applying your repo's manifests — `kubectl apply -f k8s/service.yaml` and the same `sed … k8s/deployment.yaml | kubectl apply -f -` pipeline as Lab 2 (your manifests are the source of truth — don't hand-edit live objects). Write a 3-line incident note.
 - **Done when:**
 
 ```bash
@@ -320,19 +321,27 @@ Answers: `solutions/self-check.md`.
 ```bash
 export AWS_REGION=us-east-1
 VPC_ID="$(aws eks describe-cluster --name orders-eks --query cluster.resourcesVpcConfig.vpcId --output text)"
-echo "Cluster VPC: $VPC_ID"     # keep this — the confirm step uses it after the cluster is gone
-# 1. Delete the LoadBalancer Service and wait for AWS to remove the CLB
+echo "Cluster VPC: '$VPC_ID'"   # must be vpc-…; WRITE IT DOWN — the confirm step needs it after the cluster is gone
+
+# 1. Delete the LoadBalancer Service and wait (up to 10 min) for AWS to remove the CLB
 kubectl -n orders delete service orders-api --ignore-not-found
-for i in $(seq 1 30); do
+n=1
+for i in $(seq 1 60); do
   n="$(aws elb describe-load-balancers --query "length(LoadBalancerDescriptions[?VPCId=='$VPC_ID'])" --output text)"
-  [ "$n" = "0" ] && echo "LB gone" && break; sleep 10
+  [ "$n" = "0" ] && break; sleep 10
 done
+echo "Load balancers left in the cluster VPC: $n"   # must be 0 before step 3
 
 # 2. Delete the app namespace
 kubectl delete namespace orders --ignore-not-found --wait
 
-# 3. Delete the cluster, node group and VPC (CloudFormation stacks)
-eksctl delete cluster -f k8s/cluster.yaml --wait        # ~10–15 minutes
+# 3. Delete the cluster, node group and VPC (CloudFormation stacks) — ONLY if step 1 printed 0
+if [ -n "$VPC_ID" ] && [ "$n" = "0" ]; then
+  eksctl delete cluster -f infra/eks/cluster.yaml --wait      # ~10–15 minutes
+else
+  echo "STOP: a load balancer still exists (or VPC_ID is empty). Deleting the cluster now would orphan it."
+  echo "Find it: aws elb describe-load-balancers --query 'LoadBalancerDescriptions[].[LoadBalancerName,VPCId]' --output text"
+fi
 ```
 
 **Confirm nothing is left:**
@@ -340,18 +349,22 @@ eksctl delete cluster -f k8s/cluster.yaml --wait        # ~10–15 minutes
 ```bash
 aws eks list-clusters --query 'clusters[?@==`orders-eks`]' --output text                       # expect: no output
 aws cloudformation list-stacks \
-  --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE DELETE_FAILED ROLLBACK_COMPLETE \
-  --query "StackSummaries[?starts_with(StackName, 'eksctl-orders-eks')].[StackName,StackStatus]" --output text   # expect: no output
-aws ec2 describe-instances --filters Name=tag:env,Values=eks-lab Name=instance-state-name,Values=pending,running,stopping,stopped \
+  --query "StackSummaries[?starts_with(StackName, 'eksctl-orders-eks') && StackStatus!='DELETE_COMPLETE'].[StackName,StackStatus]" \
+  --output text                                                                                # expect: no output
+aws elb describe-load-balancers --query "LoadBalancerDescriptions[?VPCId=='$VPC_ID'].LoadBalancerName" --output text
+                                                                                               # expect: no output
+aws ec2 describe-instances --filters Name=tag:eks:cluster-name,Values=orders-eks Name=instance-state-name,Values=pending,running,stopping,stopped \
   --query 'Reservations[].Instances[].InstanceId' --output text                                # expect: no output
-aws ec2 describe-volumes --filters Name=tag-key,Values=kubernetes.io/cluster/orders-eks \
-  --query 'Volumes[].VolumeId' --output text                                                   # expect: no output
+aws ec2 describe-volumes --filters Name=status,Values=available --query 'Volumes[].VolumeId' --output text
+                                                                                               # expect: no output (no detached disks)
+aws ec2 describe-nat-gateways --filter Name=vpc-id,Values="$VPC_ID" Name=state,Values=pending,available \
+  --query 'NatGateways[].NatGatewayId' --output text                                           # expect: no output
 aws ec2 describe-vpcs --vpc-ids "$VPC_ID" 2>&1 | grep -q InvalidVpcID.NotFound && echo "VPC gone"   # expect: VPC gone
 ```
 
 If a stack is `DELETE_FAILED`, the usual cause is an orphaned load balancer or ENI in the VPC: run step 1's `describe-load-balancers` without the VPC filter, delete what's left, then re-run `eksctl delete cluster`.
 
-Merge `phase3/eks` with the `k8s/` directory (Service back to `type: ClusterIP` as the committed default).
+Merge `phase3/eks` with `k8s/` and `infra/eks/cluster.yaml` (Service back to `type: ClusterIP` as the committed default).
 
 ## 10. Last verified
 
@@ -359,4 +372,4 @@ Merge `phase3/eks` with the `k8s/` directory (Service back to `type: ClusterIP` 
 - **Verified by:** —
 - **Region:** `us-east-1`
 - **Versions:** Kubernetes / EKS 1.36 · kubectl v1.36.6 · eksctl v0.231.0 · AWS CLI 2.33.14 · node AMI: eksctl default for 1.36 (record the AMI ID from `kubectl get nodes -o wide` / the node group)
-- **Notes:** versions read from dl.k8s.io, GitHub releases and the EKS version page on 2026-11-17 (1.37, 1.36, 1.35, 1.34 in standard support). No command run against AWS. Default CLB behaviour marked `TODO(verify)`.
+- **Notes:** versions read from dl.k8s.io, GitHub releases and the EKS version page on 2026-11-17 (1.37, 1.36, 1.35, 1.34 in standard support). No command run against AWS. Default CLB behaviour confirmed against the EKS docs by the qa agent on 2026-11-17.
