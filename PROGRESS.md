@@ -7,7 +7,24 @@ Source of truth for module rules: [CLAUDE.md](CLAUDE.md) · template: [templates
 
 - **Stage:** Phase 0 diagnostic + gate drafted; Module 0.0 drafted and reviewed (labs/cost/qa fixes applied); Stage 4 mapping approved (MAPPING.md); Phase 2 exit contract + Phase 3 modules 3.1–3.5 drafted. Nothing run against AWS yet.
 - **Legacy content:** `index.html` (Module 0 + Months 1–6) remains published and unchanged.
-- **Exact next step:** human run of Module 0.0 (and live pricing check, fix list #25); decide D10 (WSL); write Phase 0 modules 0.1–0.6; then Phase 1 module 1.1.
+- **Exact next step:** your approval of Sessions A, B and C (below); then session 1 = module 0.1.
+
+## Session order (revised 2026-11-17, confirmed)
+
+| # | Session | Status |
+|---|---|---|
+| A | Backfill `lastVerified` (0.0, 3.1–3.5); EKS minor-version pin; `/version` → 1.1 | 🟨 done except the backfill — **needs a human run** (see below) · `be8ff20` |
+| B | Close MAPPING gaps: ADRs → 2.9, WSL → 0.1, Docker → 0.1, new 3.6 capstone | 🟨 awaiting approval · `e439c9c` |
+| C | Scope drafts for 0.1–0.6 (`phases/phase-0/*/scope.md`, not published by the site) | 🟨 awaiting approval |
+| — | **Gate: A, B, C approved** | |
+| 1–6 | Phase 0 modules 0.1 → 0.6 (one session each; labs/cost/qa agents; commit) | ⬜ |
+| 7–12 | Phase 1 modules 1.1 → 1.6 (1.4 may run before 1.3; 1.5 needs 1.3 + 1.4) | ⬜ |
+| 13–21 | Phase 2 modules 2.1 → 2.9 (2.4 after 2.2; 2.7 after 2.3) | ⬜ |
+| 22 | Contract reconciliation (Phase 2 output vs `phases/phase-2/CONTRACT.md`) | ⬜ |
+| 23 | Phase 3 fix-up (dangling Phase 1/2 references, re-run qa on 3.1–3.5) | ⬜ |
+| 24 | 3.6 Phase 3 capstone | ⬜ |
+
+**Session A backfill not done:** `lastVerified` can only be set by a human who ran *every* command. 0.0 needs account creation (card, phone) and phone-based MFA in the console; 3.1–3.5 need the Phase 2 infrastructure that sessions 13–21 build. All six stay `lastVerified: null` until then (fix list #25).
 
 ## Scaffolding
 
@@ -31,7 +48,7 @@ Source of truth for module rules: [CLAUDE.md](CLAUDE.md) · template: [templates
 | D7 | Answer keys location | `/solutions/assessments/` + per-module `solutions/`, not linked from nav | **decided 2026-11-17** |
 | D8 | Course length | README "28-week" vs phase-gated structure | open |
 | D9 | Phase 3 written before Phase 2 | Phase 3 targets `phases/phase-2/CONTRACT.md`; Phase 2 rewrite must satisfy it or update both together | **decided 2026-11-17** |
-| D10 | Workstation/WSL setup | Not in the Phase 0 spec (legacy Lesson 0.1) — fold into 0.1 or make a prerequisite page? | open |
+| D10 | Workstation/WSL setup | First lab of 0.1 (MAPPING B-2) | **decided 2026-11-17** |
 | D11 | Blue/green mechanism (2.6) | ECS-native blue/green; deployment controller `ECS` (Phase 2 contract §4) | **decided 2026-11-17** |
 
 ## Module status
@@ -43,14 +60,14 @@ DoD columns: **T** full template · **H** every command run by a human · **C** 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 0 | Phase 0 diagnostic + gate rules (`/assessments/`; keys in `/solutions/assessments/`) — 0.0–0.6 spec numbering | Start-page self-assessment (self-reported only) | 🟨 | n/a | | ✅ | n/a | ✅ | ✅ | ✅ (qa A, fixed in fa25779) | ✅ |
 | 0 | 0.0 Account safety & billing guardrails (`phases/phase-0/00-account-safety`) | M0 Lesson 0.7 + new (AUDIT B2) | 🟦 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-| 0 | 0.1 Linux & the shell | M0 Lessons 0.2, 0.2b (+ 0.1 WSL, see D10) | ⬜ | | | | | | | | |
-| 0 | 0.2 Networking fundamentals | M0 Lessons 0.3, 0.3b | ⬜ | | | | | | | | |
-| 0 | 0.3 Git & GitHub workflows | M0 Lesson 0.4 | ⬜ | | | | | | | | |
-| 0 | 0.4 Python for ops | M0 Lesson 0.5 | ⬜ | | | | | | | | |
-| 0 | 0.5 AWS core mental model + CLI | new (AUDIT B11, B13) | ⬜ | | | | | | | | |
-| 0 | 0.6 Capstone mini-project + Phase 0 gate | new (must meet gate-rules.md Gate C contract) | ⬜ | | | | | | | | |
+| 0 | 0.1 Linux & the shell (`01-linux-shell`, scope.md drafted) | M0 Lessons 0.1, 0.2, 0.2b, 0.6 | 🟨 scope | | | | | | | | |
+| 0 | 0.2 Networking fundamentals (`02-networking`, scope.md drafted) | M0 Lessons 0.3, 0.3b | 🟨 scope | | | | | | | | |
+| 0 | 0.3 Git & GitHub workflows (`03-git-github`, scope.md drafted) | M0 Lesson 0.4 | 🟨 scope | | | | | | | | |
+| 0 | 0.4 Python for ops (`04-python-ops`, scope.md drafted) | M0 Lesson 0.5 | 🟨 scope | | | | | | | | |
+| 0 | 0.5 AWS core mental model + CLI (`05-aws-core-cli`, scope.md drafted) | new (AUDIT B11, B13) | 🟨 scope | | | | | | | | |
+| 0 | 0.6 Capstone mini-project + Phase 0 gate (`06-capstone`, scope.md drafted) | new (must meet gate-rules.md Gate C contract) | 🟨 scope | | | | | | | | |
 | 1 | 1.1 The app: build and test locally | M1 W1 | ⬜ | | | | | | | | |
-| 1 | 1.2 Containers: Docker install, Dockerfile, Compose | M0 L0.6 + M1 W2 | ⬜ | | | | | | | | |
+| 1 | 1.2 Containers: Dockerfile and Compose (install moved to 0.1, B-3) | M1 W2 | ⬜ | | | | | | | | |
 | 1 | 1.3 CI with GitHub Actions | M1 W4 (CI half) | ⬜ | | | | | | | | |
 | 1 | 1.4 IaC intro (Terraform, local state) | M2 W1 concepts + new | ⬜ | | | | | | | | |
 | 1 | 1.5 CI publishes to ECR via OIDC | M1 W3 (ECR) + W4 (OIDC) | ⬜ | | | | | | | | |
@@ -70,7 +87,7 @@ DoD columns: **T** full template · **H** every command run by a human · **C** 
 | 3 | 3.3 Advanced observability / SLOs (`03-observability-slos`) | Month 4 (advanced parts) + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 3 | 3.4 Kubernetes/EKS (`04-kubernetes-eks`) | Month 6 note only + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 3 | 3.5 Ansible (`05-ansible`) | — new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 3 | Capstone | Month 6 | ⬜ | | | | | | | | |
+| 3 | 3.6 Phase 3 capstone (`06-capstone`, planned — MAPPING B-1b) | Month 6 W1 (audit), W3, W4 | ⬜ | | | | | | | | |
 
 *Rows follow the Phase 0 spec (0.0–0.6) and MAPPING.md. \*0.0 QA: review findings applied 2026-11-17; Last-verified still pending a human run. "V" = Last-verified block present (not yet verified). Phase 3 modules: qa + cost agents run 2026-11-17, findings fixed (see Fix list).*
 
