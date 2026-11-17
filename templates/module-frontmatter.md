@@ -53,7 +53,7 @@ Any other key with a `MAJOR.MINOR`-only value is a floating pin and fails valida
 
 - **Missing required key** → build **warning** naming the file and key. The page still builds.
 - **Wrong type or format** (e.g. unquoted `moduleId`, `timeEstimate: "8 to 10 hours"`) → build **warning**.
-- **`lastVerified: null`** → build **warning** ("not yet verified"); the page shows an "Not yet verified" badge.
+- **`lastVerified: null`** → build **warning** ("not yet verified"); the page shows a visible "Not yet verified by a human" badge.
 - **`hasTeardown: false` or `costEstimate`/`costAssumptions` missing** → build **warning**; the page shows a visible "cost/teardown missing" notice instead of the cost callout.
 - **`prerequisites` naming an ID with no module** → build **warning** (allowed while modules are being written; never silent).
 - **Duplicate `moduleId`**, or `phase`/`moduleId` not matching the folder → build **warning**.

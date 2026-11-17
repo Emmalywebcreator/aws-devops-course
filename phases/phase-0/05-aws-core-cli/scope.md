@@ -11,7 +11,7 @@ title: "AWS core mental model + CLI"
 goal: "Explain IAM, VPC, EC2 and S3 correctly and drive them from the CLI."
 timeEstimate: "10-12h"
 costEstimate: "<$1"
-costAssumptions: "us-east-1, on-demand, no free tier assumed, author's prices 2026-11-17 (to be checked); NAT Gateway torn down in the same session; if you skip teardown ≈ $1.60/day"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's prices 2026-11-17 (to be checked); NAT Gateway created, verified and deleted in the same session (target < 30 min); if you skip teardown ≈ $1.60/day, of which the NAT Gateway alone ≈ $1.10/day"
 lastVerified: null
 prerequisites: ["0.0", "0.1", "0.2"]
 hasDebuggingLab: true
@@ -41,13 +41,14 @@ Explain IAM, VPC, EC2 and S3 correctly and drive them from the CLI.
 | EBS 8 GiB gp3 | USD 0.08/GB-month | ≤ 4 h |
 | S3 bucket + one object | cents | — |
 
-Total < USD 1 with same-session teardown. **If you skip teardown ≈ USD 1.60/day** (NAT 1.08 + its IPv4 0.12 + EC2 0.25 + instance IPv4 0.12 + disk 0.02).
+Total < USD 1 with same-session teardown. **The NAT Gateway alone ≈ USD 1.10/day** (0.045 × 24 = 1.08, before any data) — stated in the lab itself, next to the create command. **If you skip all teardown ≈ USD 1.60/day** (NAT 1.08 + its IPv4 0.12 + EC2 0.25 + instance IPv4 0.12 + disk 0.02).
 
 ## 5. Concepts (applied immediately — spec)
 Regions/AZs; IAM users/roles/policies and **request evaluation: explicit deny wins, then allow, then implicit deny** (doc-cited); VPC, subnets, route tables, IGW, NAT, security groups vs NACLs; EC2 vs managed services; S3, bucket policies, encryption; roles instead of long-lived keys.
 
 ## 6. Labs (spec; region `us-east-1`)
-1. **VPC by CLI:** VPC, public + private subnets, IGW, route tables, **NAT Gateway** (cost callout, torn down in this session — the classic beginner bill).
+1. **VPC by CLI, as scripts:** the learner builds the VPC (public + private subnets, IGW, route tables, security groups) as **`vpc-up.sh`** and **`vpc-down.sh`** (reverse order, idempotent, tag-based lookups — no hardcoded IDs). These scripts are reused in Phase 2.1 (decision 5).
+1b. **NAT Gateway — create, verify, tear down in one sitting (target < 30 minutes)** (decision 5): create the NAT Gateway and its Elastic IP with the **≈ USD 1.10/day** figure stated beside the command; launch a private-subnet instance and prove outbound `curl` works through NAT; then **delete the NAT Gateway and release the Elastic IP as a graded step**, verified with `aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<vpc> Name=state,Values=pending,available` → empty and `aws ec2 describe-addresses` → no address.
 2. **EC2 in the public subnet:** launch `t3.micro`, SSH in, then tighten the security group to your IP `/32`.
 3. **S3 with encryption + a bucket policy.**
 4. **IAM role on EC2 reads an S3 object with no keys** (instance profile, IMDSv2).
@@ -68,6 +69,6 @@ Explicit order with verification (spec): terminate instance → `delete-nat-gate
 ## 10. Last verified
 `null` until a human run.
 
-## Open questions for approval
-1. **Overlap with 2.1** (MAPPING open question 1): 0.5 builds a VPC by hand; 2.1 should reuse that knowledge and not rebuild a VPC by hand. Confirm.
-2. **NAT lab length:** keep the NAT Gateway alive only long enough to prove a private-subnet instance can reach out (≈ 20–30 min), or demonstrate with no instance in the private subnet at all? Recommendation: a private instance proves the point; launch it, prove `curl` out via NAT, tear down immediately.
+## Decisions (approved 2026-11-17)
+5. **2.1 does not rebuild a VPC by hand.** It consumes the 0.5 VPC if it still exists, or recreates it with `scripts/vpc-up.sh` from this module (copied into the `aws-devops-platform` repo in 2.1). `vpc-up.sh` must therefore support a **no-NAT mode** (public subnets only), because Phase 2 never runs a NAT Gateway. See `phases/phase-2/01-ecs-fargate-by-hand/scope.md`.
+5b. **NAT Gateway:** created, verified and torn down in the same session, target under 30 minutes, with the ≈ USD 1.10/day figure stated; teardown is a graded step with a verification command.

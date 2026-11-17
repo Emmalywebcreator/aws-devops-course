@@ -58,13 +58,13 @@ Legend: **→** where it goes · ⤴ moved to Phase 3 (to be logged in PROGRESS.
 
 | # | Module | Built from | Adds to the one repo |
 |---|---|---|---|
-| 1.1 | The app: build and test locally | M1 W1 | `app/` (incl. `GET /version`, `APP_VERSION` — M-8a), `tests/`, `requirements.txt` (pinned) |
+| 1.1 | The app: build and test locally — **`orders-api`**, the same app first deployed in 0.6 | M1 W1 | `app/` (incl. `GET /health`, `GET /version`, `APP_VERSION` — M-8a), `tests/`, `requirements.txt` (pinned) |
 | 1.2 | Containers: Dockerfile and Compose | M1 W2 (Docker already installed in 0.1 — B-3) | `Dockerfile`, `compose.yaml` |
 | 1.3 | Continuous integration with GitHub Actions | M1 W4 (CI half) | `.github/workflows/ci.yml` |
 | 1.4 | Infrastructure as Code intro (Terraform, local state) | M2 W1 concepts + **new** | `infra/bootstrap/` (ECR repo, OIDC role) |
 | 1.5 | CI publishes images to ECR via OIDC | M1 W3 (ECR) + M1 W4 (OIDC) | `ci.yml` push job |
 | 1.6 | Phase 1 gate | M1 W6 + **new** gate | `docs/phase-1-evidence.md` |
-| 2.1 | ECS on Fargate by hand (CLI): task vs service, ALB | M1 W3 | — (torn down same session) |
+| 2.1 | ECS on Fargate by hand (CLI): task vs service, ALB | M1 W3 | `scripts/vpc-up.sh` / `vpc-down.sh` (from 0.5, no-NAT mode); ECS resources torn down same session |
 | 2.2 | Terraform for real: remote state, modules, network + ECS | M2 W1–W2, W4 | `infra/` modules + `envs/dev` |
 | 2.3 | Continuous deployment to ECS + rollback basics | M1 W4 (CD) + M1 W5 | `deploy.yml`, `scripts/ecs_status.py` |
 | 2.4 | Terraform in CI + drift (HTTPS optional track) | M2 W3 | `terraform.yml` |
@@ -87,6 +87,7 @@ Legend: **→** where it goes · ⤴ moved to Phase 3 (to be logged in PROGRESS.
 
 ## Open questions
 
-1. **Phase 0.5 vs Phase 2.1 overlap:** 0.5 will launch EC2 in a hand-built VPC (planned). 2.1 reuses that VPC knowledge and adds only ECS/ALB. Confirm 2.1 should not rebuild a VPC by hand.
+1. ~~Phase 0.5 vs Phase 2.1 overlap~~ — **decided 2026-11-17:** 2.1 does not rebuild a VPC by hand; it consumes the 0.5 VPC or recreates it with 0.5's `scripts/vpc-up.sh` in no-NAT mode (`phases/phase-2/01-ecs-fargate-by-hand/scope.md`).
+4. **App name (decided 2026-11-17):** the app is **`orders-api`** from its first appearance in 0.6 through Phases 1–3.
 2. ~~Blue/green mechanism~~ — decided: ECS-native blue/green (CONTRACT §4).
 3. ~~WSL / workstation setup~~ — decided B-2. ~~Docker install~~ — decided B-3. ~~ADRs~~ — decided B-1.

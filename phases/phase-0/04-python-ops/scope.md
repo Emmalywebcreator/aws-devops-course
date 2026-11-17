@@ -11,12 +11,12 @@ title: "Python for ops"
 goal: "Automate a small, boring task and log it properly."
 timeEstimate: "8-10h"
 costEstimate: "$0"
-costAssumptions: "us-east-1; S3 ListBuckets calls from the lab are a handful of requests (fractions of a cent); IAM has no charge; if you skip teardown ≈ $0/day (a leftover IAM user costs nothing but is a security risk)"
+costAssumptions: "us-east-1; S3 ListBuckets calls from the lab are a handful of requests (fractions of a cent); IAM has no charge; if you skip teardown ≈ $0/day (a leftover IAM user or access key costs nothing but is a security risk — teardown is graded)"
 lastVerified: null
-prerequisites: ["0.0", "0.1"]
+prerequisites: ["0.0", "0.1", "0.3"]
 hasDebuggingLab: true
 hasTeardown: true
-toolsPinned: { python: "3.12.16", requests: "2.34.2", boto3: "1.44.4", awscli: "2.33.14" }
+toolsPinned: { python: "3.12.16", requests: "2.34.2", boto3: "1.44.4", awscli: "2.33.14", "git-filter-repo": "2.47.0" }
 ```
 
 **Sources:** spec "Module 0.4"; legacy Lesson 0.5; diagnostic Q10, Q11; contract §4 (Python 3.12.16).
@@ -26,7 +26,7 @@ toolsPinned: { python: "3.12.16", requests: "2.34.2", boto3: "1.44.4", awscli: "
 Automate a small, boring task and log it properly.
 
 ## 2. Prerequisites
-0.0 (AWS account, admin user, `aws login`), 0.1 (shell, env vars, paths).
+0.0 (AWS account, admin user, `aws login`), 0.1 (shell, env vars, paths), 0.3 (Git history — needed for Lab 7).
 
 ## 3. Time estimate
 8–10 h (spec).
@@ -43,7 +43,10 @@ venv and pinned `requirements.txt` (why); types, functions, files; `argparse` CL
 3. **Logging with levels**, to a file and stderr.
 4. **`try/except` for real failures:** API 500, missing file — each logged with context, exit code non-zero.
 5. **`subprocess`** wrapping a shell command, with `check=True` and captured output.
-6. **List S3 buckets read-only and log the result:** a dedicated IAM user `p0-readonly` allowed only `s3:ListAllMyBuckets`; boto3 script logs the bucket count. Teardown deletes the user (spec).
+6. **List S3 buckets read-only and log the result:** a dedicated IAM user `p0-readonly` allowed **only** `s3:ListAllMyBuckets`, with an **access key** (decision 4) stored as a named CLI profile — never in the script. boto3 script logs the bucket count. Teardown deactivates and deletes the key, then deletes the user (spec), and is a **graded step** with a verification command (`aws iam list-access-keys --user-name p0-readonly` → `NoSuchEntity`).
+   - **Justification note shown to learners** (decision 4): "Module 0.0 avoids long-lived keys. This lab uses one on purpose: it's read-only, limited to listing bucket names, and deleted before you finish the lab. You'll see how the SDK finds credentials without them ever appearing in code. In later phases, roles replace keys entirely."
+   - **TODO(revisit):** if boto3 1.44.4 (or the version pinned when this module is written) is confirmed in its official docs to support the `aws login` credential provider, replace the access key with an `aws login` profile. **Do not write a lab against that capability until it's verified.**
+7. **Rewrite Git history to remove a leaked secret** (moved from 0.3 — decision 3): `pip install git-filter-repo==2.47.0` into the lab venv; re-create the 0.3 debugging-lab repo with its break script (0.3's teardown deleted it), which has the fake `.env` in history; run `git filter-repo --path .env --invert-paths`; prove it's gone from every commit (`git log --all -- .env` empty); force-push; re-state why the secret still had to be rotated first. Teardown: delete the practice repo copy and the venv.
 
 ## 7. Debugging lab (spec)
 Script works from its own folder but fails with `python3 script.py` from another directory: **relative path** + **missing environment variable**. Fix (paths relative to `__file__`, explicit env check with a clear error) and explain. Diagnosis path in `solutions/`.
@@ -55,11 +58,14 @@ Script works from its own folder but fails with `python3 script.py` from another
 - Plus: read a traceback and name the failing line; why a venv per project.
 
 ## 9. Teardown
-Delete the `p0-readonly` IAM user (and any keys/login profile), remove the venv and lab folder. Confirm with `aws iam get-user --user-name p0-readonly` → `NoSuchEntity`.
+Delete the `p0-readonly` access key, then the user; remove the CLI profile, the venv, the lab folder and the Lab 7 practice repo copy. Confirm with `aws iam get-user --user-name p0-readonly` → `NoSuchEntity` and `aws configure list-profiles` (no `p0-readonly`).
 
 ## 10. Last verified
 `null` until a human run.
 
-## Open questions for approval
-1. **Credentials for the read-only identity.** The spec says "delete the read-only IAM user/keys". Long-lived access keys contradict 0.0's `aws login` approach. Proposal: the read-only user signs in via `aws login --profile p0-readonly` and boto3 uses that profile — **TODO(verify) boto3 1.44.4 supports the `aws login` credential provider**; if not, fall back to an access key created and deleted in the same session, with the teardown proving it's gone.
-2. **Public API for Lab 2:** pick one with a stable, unauthenticated, rate-limit-friendly endpoint, or keep the lab fully local. Recommendation: local stub only for graded checks.
+## Decisions (approved 2026-11-17)
+3. **History rewrite lives here** (Lab 7), with `git-filter-repo` installed via `pip`, pinned 2.47.0.
+4. **Read-only user uses an access key for now**, with the justification note above. The key is read-only, limited to S3 List, and deleted at the end of the lab; deletion is graded. A TODO tracks revisiting `aws login` support in boto3, and no lab is written against that unverified capability.
+
+## Still open (not blocking)
+- **Public API for Lab 2:** keep graded checks on the local stub; the public endpoint is illustrative only.

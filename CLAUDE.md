@@ -81,3 +81,6 @@ A module may reference earlier modules but NEVER later ones.
 [ ] Cost + teardown    [ ] Debugging lab included
 [ ] Last-verified date [ ] No forward references
 [ ] QA agent passed    [ ] Self-check answers exist in /solutions
+
+`lastVerified` is set only by a human who ran every command in the module end-to-end.
+Agents may not set it, even after a full dry run.

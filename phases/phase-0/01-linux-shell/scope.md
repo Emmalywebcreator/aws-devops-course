@@ -50,9 +50,9 @@ USD 0 — everything runs locally. `costAssumptions: "none"`. Skip-teardown cost
 1. **Get a Linux shell** (legacy 0.1, B-2): WSL 2 + Ubuntu 24.04 on Windows (keep files in `~`, not `/mnt/c`); Terminal on macOS/Linux. Verify `echo "$SHELL"; uname -s` (matches diagnostic Q3).
 2. **Filesystem and permissions:** navigate, create, move; a script that fails with `Permission denied` → fix with least privilege; a file owned by the wrong user → `chown` (with `sudo`, explained). Verify with `stat`.
 3. **Pipes and text tools:** count error lines in a provided log, extract fields with `awk`, rewrite with `sed`; `>` vs `>>`.
-4. **Processes and services:** start/inspect/kill a background process; `systemctl status/start/stop` on a real service (WSL 2 with systemd, Linux). See open question 1 for macOS.
+4. **Processes and services:** start/inspect/kill a background process (all OSes); `systemctl status/start/stop` on a real service — **Linux/WSL 2 only** (decision 1). macOS learners read a short note on `launchctl`, macOS's equivalent. The `systemctl` part is **not required to pass the gate**.
 5. **Environment and start-up files:** set/export variables, prove the difference in a child process, persist in `.bashrc`/`.zshrc`.
-6. **Install Docker and SSH into a local container** (B-3): install Docker (Linux/WSL: Ubuntu's `docker.io` apt package, exact version pinned; macOS: Docker Desktop, exact version pinned — see open question 2); run a pinned `ubuntu:noble-20261110` container with `openssh-server`, generate an ed25519 key, SSH in on a mapped port, see the host-key prompt. Teardown: `docker rm -f`, `docker image rm`, remove the `known_hosts` entry.
+6. **Install Docker and SSH into a local container** (B-3): install Docker — **Linux and Windows: Docker Engine installed natively inside the Linux/WSL 2 Ubuntu environment** (apt, exact version pinned; not Docker Desktop); **macOS: Docker Desktop** (exact version pinned), with a callout that Desktop runs containers in a VM, so some `docker network` and host-networking output differs from Linux (decision 2); run a pinned `ubuntu:noble-20261110` container with `openssh-server`, generate an ed25519 key, SSH in on a mapped port, see the host-key prompt. Teardown: `docker rm -f`, `docker image rm`, remove the `known_hosts` entry.
 
 ## 7. Debugging lab (spec)
 `deploy.sh` fails because (a) no shebang, (b) relative paths that break when run from another directory, (c) a variable that isn't exported to a child process. Learner fixes all three and writes one sentence per cause. Diagnosis path in `solutions/`.
@@ -70,7 +70,9 @@ Remove the lab container and image, the lab directory, and the SSH `known_hosts`
 ## 10. Last verified
 `null` until a human runs every lab on Windows (WSL 2), macOS and Linux.
 
-## Open questions for approval
-1. **macOS and `systemctl`:** macOS has no systemd. Options: (a) macOS learners do Lab 4's `systemctl` part inside a free-tier EC2 instance — costs cents and needs 0.5 material; (b) teach `launchctl` as the macOS equivalent alongside; (c) mark Lab 4's service part Linux/WSL-only and give macOS learners a reading + the self-check. Recommendation: (c), with a short `launchctl` note.
-2. **Docker on Windows/macOS:** Docker Engine inside WSL 2 (free, no Desktop licence question, same commands as Linux) vs Docker Desktop. Recommendation: Engine in WSL 2 for Windows; Docker Desktop on macOS (pinned version; free for personal/education use — check current terms before writing).
-3. **Diagnostic coverage:** with Docker now in 0.1, add a Docker item to the entry diagnostic later? (Would be an `/assessments` change in its own session.)
+## Decisions (approved 2026-11-17)
+1. **`systemctl`:** Linux/WSL 2-only lab, with a short macOS note on `launchctl`. Not required to pass the gate.
+2. **Docker:** Docker Engine natively inside WSL 2 / Linux (not Docker Desktop). Docker Desktop on macOS, with a callout that its VM layer changes some `docker network` output. Check Docker Desktop's current licence terms when writing.
+
+## Still open (not blocking)
+- With Docker now in 0.1, add a Docker item to the entry diagnostic? That would be an `/assessments` change in its own session.

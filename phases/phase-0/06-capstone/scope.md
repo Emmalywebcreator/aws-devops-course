@@ -35,10 +35,10 @@ Prove readiness for Phase 1 by building and tearing down a tiny stack from a scr
 EC2 `t3.micro` + its public IPv4 + 8 GiB gp3 + a near-empty S3 bucket, for a few hours: < USD 0.10. **No NAT Gateway and no Elastic IP** (Gate C contract). Skip-teardown ≈ USD 0.39/day (0.0104 + 0.005 per hour × 24 + disk).
 
 ## 5. Concepts
-Infrastructure from a script (repeatable, reviewable) as the bridge to IaC in Phase 1; idempotent-ish create/teardown scripts; tagging so teardown can be proved; why the console is only for *confirming*.
+**The app is `orders-api`** — the same app Phase 1.1 builds (decision 6). In 0.6 it is the smallest possible version: a Python standard-library HTTP server with `GET /health` → `{"status":"ok"}` and `GET /version` → `{"version":"<APP_VERSION>"}`, run as a systemd service. Phase 1.1 rebuilds `orders-api` with FastAPI and tests in the `aws-devops-platform` repo, keeping the same name and the same two endpoints. Infrastructure from a script (repeatable, reviewable) as the bridge to IaC in Phase 1; idempotent-ish create/teardown scripts; tagging so teardown can be proved; why the console is only for *confirming*.
 
 ## 6. Labs (spec + Gate C contract)
-1. **Build script** (`build.sh`, CLI only, `us-east-1`): VPC, one public subnet + IGW + route, security group allowing the app port from your IP `/32` only, one EC2 instance running a hello-world app (user data: a minimal HTTP server as a systemd service — no Docker image build), an S3 bucket for logs. Every resource tagged `course=aws-devops-platform`, `phase=0`; the script prints the bucket name.
+1. **Build script** (`build.sh`, CLI only, `us-east-1`): VPC, one public subnet + IGW + route, security group allowing the app port from your IP `/32` only, one EC2 instance running **`orders-api`** (user data installs the 0.4-style script as a systemd service — no Docker image build), an S3 bucket for logs. Every resource tagged `course=aws-devops-platform`, `phase=0`; the script prints the bucket name.
 2. **Prove it works:** `curl` the app from your IP; prove another IP can't (e.g. from CloudShell).
 3. **Teardown script** (`teardown.sh`): reverse dependency order; empties the bucket (incl. versions if on) before deleting it.
 4. **Verify teardown clean:** run gate-rules G1–G6 and take the G7 Tag Editor screenshot ("confirm in the console that nothing billable remains").
@@ -57,6 +57,6 @@ Gate D explanations (exit-gate rubric): IAM evaluation; a request path through t
 
 **Deliverables (spec):** the repo, the teardown script, the 1-page write-up, the teardown confirmation screenshot, `phase-0-exit-evidence.md`.
 
-## Open questions for approval
-1. **Which repo?** A dedicated `p0-capstone` repo (Phase 0 only) or the start of `aws-devops-platform` (which the Phase 2 contract says Phase 1.1 creates)? Recommendation: dedicated `p0-capstone`; Phase 1.1 still creates `aws-devops-platform`.
-2. **Hello-world app:** user-data `python3 -m http.server` behind a systemd unit (no build step) vs a tiny Python file from 0.4. Recommendation: the 0.4-style script, so the capstone uses every Phase 0 skill.
+## Decisions (approved 2026-11-17)
+6. **Dedicated `p0-capstone` repo.** Phase 1.1 still creates `aws-devops-platform`.
+6b. **The app is named `orders-api` here and everywhere after.** Phase 1.1 builds the same app (FastAPI), Phase 2 deploys it as the ECS service `orders-api` (CONTRACT §4), and Phase 3 reuses it. The 0.6 version implements only `/health` and `/version`.

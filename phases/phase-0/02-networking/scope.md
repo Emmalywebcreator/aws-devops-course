@@ -38,6 +38,8 @@ USD 0 — local containers and public diagnostic targets only. Skip-teardown: US
 IP addresses and CIDR (worked /16 → /24 split); ports; DNS resolution chain; TCP vs UDP; HTTP/HTTPS and TLS at a glance; NAT (why private addresses need translation); routing and default routes; subnets; firewalls / security groups as allow-lists (stateful vs stateless named, not deep-dived). Every concept ends with "the command that shows it".
 
 ## 6. Labs (spec)
+All labs are **written against Linux behaviour** (Docker Engine on Linux / WSL 2, per 0.1). macOS learners on Docker Desktop get a callout wherever output differs (Desktop's VM layer — e.g. host networking, `docker network inspect` gateway addresses).
+
 1. **Probe real targets:** `ping`, `traceroute`, `dig`, `curl -v` against stable public targets (choose ones that allow ICMP/HTTP; record expected output shapes, not exact IPs).
 2. **Subnetting practice:** split `10.0.0.0/16` into `/24`s; verify answers with a one-line calculator command (no Python lesson needed; Python is 0.4).
 3. **Two containers, one network:** two pinned containers on separate user-defined Docker networks can't reach each other; connect them → they can. Verify with `curl`/`ping` by container name.
@@ -59,6 +61,8 @@ Remove all `p0-net*` containers and networks. Confirm `docker ps -a` and `docker
 ## 10. Last verified
 `null` until a human run.
 
-## Open questions for approval
-1. **macOS Docker networking** behaves differently (containers run in a VM; `ip route` inside the container is still Linux). Keep all commands *inside* containers so output matches on every OS? Recommendation: yes.
-2. **ICMP targets:** some networks block `ping`/`traceroute`; the lab must say so and accept "timeout" as an explained outcome.
+## Decisions (approved 2026-11-17)
+1. Labs are written against **Linux** Docker behaviour. Where possible, commands run *inside* containers so output matches on every OS; where macOS Docker Desktop differs, a callout explains why (its VM layer).
+
+## Notes for the module session
+- **ICMP targets:** some networks block `ping` and `traceroute`, so the lab must say so and accept "timeout" as an explained outcome.

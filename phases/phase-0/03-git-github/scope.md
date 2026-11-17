@@ -16,7 +16,7 @@ lastVerified: null
 prerequisites: ["0.1"]
 hasDebuggingLab: true
 hasTeardown: true
-toolsPinned: { git: "2.43.0", "git-filter-repo": "2.47.0" }
+toolsPinned: { git: "2.43.0" }
 ```
 
 **Sources:** spec "Module 0.3"; legacy Lesson 0.4; diagnostic T3 (SSH push), Q8, Q9; AUDIT B5 (SSH prompts).
@@ -45,13 +45,17 @@ Snapshots and commits (not diffs), the staging area, branches as pointers, merge
 5. **Undo mistakes:** `restore`, `reset --soft/--hard`, `revert` on a pushed commit — with "which tool, and why".
 Teardown: delete the local repo; deleting the GitHub repo is optional (free).
 
-## 7. Debugging lab (spec)
-A commit accidentally includes a fake `.env`. Learner removes it from **history** with `git filter-repo` (pinned 2.47.0), force-pushes, and explains why **rotating the secret is still required**. Diagnosis path in `solutions/`.
+## 7. Debugging lab (spec, adapted — decision 3)
+A practice repo (provided by a break script) has a fake `.env` committed several commits ago and "deleted" in a later commit. The learner:
+1. **Finds** the secret in history without executing any rewrite: `git log --all --diff-filter=A -- .env`, `git log -p -S 'API_KEY'`, `git show <commit>:.env`.
+2. **Proves** it's still reachable on the remote (clone fresh, `git show`).
+3. **Explains the remedy in writing, in order:** (a) revoke/rotate the secret first — rewriting history can't recall copies already taken; (b) then rewrite history (name the tool, `git filter-repo`, and what it does — **not executed here**); (c) force-push and have collaborators re-clone; (d) prevent it (`.gitignore`, secret scanning).
+No tool is installed in 0.3. The actual history-rewrite lab is in **0.4** (installed via `pip`). Diagnosis path and model answer in `solutions/`.
 
 ## 8. Self-check (spec)
 - Merge vs rebase, one sentence each.
 - What does `git reset --hard` destroy that `--soft` doesn't?
-- Plus: prove a file is ignored; when to `revert` instead of `reset`.
+- Plus: prove a file is ignored; when to `revert` instead of `reset`; the command that shows which commit introduced a file.
 
 ## 9. Teardown
 `rm -rf ~/p0-git-practice`; optional GitHub repo deletion (CLI or UI, "UI as of"). Confirm locally with `ls`.
@@ -59,6 +63,8 @@ A commit accidentally includes a fake `.env`. Learner removes it from **history*
 ## 10. Last verified
 `null` until a human run.
 
-## Open questions for approval
-1. **Installing `git-filter-repo` before Python (0.4):** options: Ubuntu's apt package (older version), or `pip install git-filter-repo==2.47.0` in a throwaway venv as a single explained command. Recommendation: apt on Ubuntu/WSL if its version supports the needed flags, else the venv one-liner; decide when writing.
-2. **macOS git version** varies (Apple's git vs Homebrew); pin by recording `git --version` rather than forcing an install? Recommendation: require git ≥ 2.43 and record the version used.
+## Decisions (approved 2026-11-17)
+3. **`git-filter-repo` is not installed in 0.3.** The debugging lab is identify-and-explain only (above). The rewrite itself is a 0.4 lab.
+
+## Still open (not blocking)
+- **macOS git version** varies (Apple's git vs Homebrew). Proposal: require git ≥ 2.43 and record the version used, rather than forcing an install.
