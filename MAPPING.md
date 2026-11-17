@@ -21,6 +21,7 @@ Phase 0 scope follows the 0.0–0.6 spec.
 | M-6 | Docker install (legacy Lesson 0.6) | **Phase 1, module 1.2** | It isn't in the Phase 0 spec, and Phase 1 is the first place Docker is used. |
 | M-7 | AWS fundamentals duplicated in Month 1 §1.1–1.2 (IAM, VPC, regions) | **Strip from Phase 1–2.** Link back to Phase 0 module 0.5. | Phase 0.5 will teach IAM evaluation, VPC and CLI (planned — not yet written). |
 | M-8 | Phase gates | New **1.6** and **2.9** gate modules, each with teardown verification + written explanations, mirroring the 0.6 gate | CLAUDE.md requires hard gates between phases. The legacy course has none. |
+| M-8a | `GET /version` + `APP_VERSION` (decided 2026-11-17, Session A) | Built in **1.1** (was 2.6). 2.6 still adds `ERROR_RATE` and `ORDERS_API_KEY`. | Trivial to build with the app; every later phase uses it to prove which build is running (gates 1.6/2.9, Phase 3.4/3.5). `CONTRACT.md` §3 updated. |
 
 ## Week-by-week mapping
 
@@ -54,7 +55,7 @@ Legend: **→** where it goes · ⤴ moved to Phase 3 (to be logged in PROGRESS.
 
 | # | Module | Built from | Adds to the one repo |
 |---|---|---|---|
-| 1.1 | The app: build and test locally | M1 W1 | `app/`, `tests/`, `requirements.txt` (pinned) |
+| 1.1 | The app: build and test locally | M1 W1 | `app/` (incl. `GET /version`, `APP_VERSION` — M-8a), `tests/`, `requirements.txt` (pinned) |
 | 1.2 | Containers: Docker install, Dockerfile, Compose | M0 L0.6 + M1 W2 | `Dockerfile`, `compose.yaml` |
 | 1.3 | Continuous integration with GitHub Actions | M1 W4 (CI half) | `.github/workflows/ci.yml` |
 | 1.4 | Infrastructure as Code intro (Terraform, local state) | M2 W1 concepts + **new** | `infra/bootstrap/` (ECR repo, OIDC role) |

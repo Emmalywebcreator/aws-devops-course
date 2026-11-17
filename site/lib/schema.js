@@ -10,7 +10,10 @@ export const REQUIRED_KEYS = [
   "hasTeardown", "toolsPinned",
 ];
 
-const FORBIDDEN_VERSION = /(latest|~>|>=|<=|\^|\*)/i;
+const FORBIDDEN_VERSION = /(latest|~>|>=|<=|\^|\*|^main$|^master$)/i;
+// MAJOR.MINOR-only values are floating pins, except for keys ending in "MinorVersion"
+// (documented exception in templates/module-frontmatter.md).
+const MINOR_ONLY = /^v?\d+\.\d+$/;
 
 export const RULES = {
   phase: (v) => (isStr(v) && /^phase-[0-3]$/.test(v)) || 'must be "phase-0" … "phase-3"',
@@ -28,7 +31,8 @@ export const RULES = {
   hasTeardown: (v) => typeof v === "boolean" || "must be true or false",
   toolsPinned: (v) => {
     if (v === null || typeof v !== "object" || Array.isArray(v)) return "must be a map of tool → version";
-    const bad = Object.entries(v).filter(([, ver]) => !isStr(ver) || FORBIDDEN_VERSION.test(ver));
+    const bad = Object.entries(v).filter(([k, ver]) =>
+      !isStr(ver) || FORBIDDEN_VERSION.test(ver) || (MINOR_ONLY.test(ver) && !k.endsWith("MinorVersion")));
     return bad.length === 0 || `unpinned or non-string versions: ${bad.map(([k]) => k).join(", ")}`;
   },
 };

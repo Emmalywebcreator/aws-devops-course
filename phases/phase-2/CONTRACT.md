@@ -60,7 +60,7 @@ Ongoing cost (`us-east-1`, author's figures as of 2026-11-17, not yet checked ag
 | Logs | one JSON object per line on stdout with keys `ts`, `level`, `msg`, `request_id`, `method`, `path`, `status`, `latency_ms` |
 | Image tags | `sha-<first 12 chars of git SHA>`; never `latest` |
 
-> **New vs legacy:** `ERROR_RATE`, `GET /version` and `ORDERS_API_KEY` are required by Phase 3 (3.2 secrets, 3.3 SLO drills). Phase 2.6 (failure flags) must add them.
+> **New vs legacy:** `ERROR_RATE`, `GET /version` and `ORDERS_API_KEY` are required by Phase 3 (3.2 secrets, 3.3 SLO drills, 3.4/3.5 version checks). **`GET /version` and `APP_VERSION` are built in Phase 1.1** (decision M-8a, MAPPING.md); Phase 2.6 (failure flags) adds `ERROR_RATE` and `ORDERS_API_KEY`.
 
 ## 4. Terraform
 

@@ -37,7 +37,17 @@ toolsPinned:
 | `prerequisites` | string[] | **required** (may be `[]`) | Module IDs (quoted strings, same format as `moduleId`) that must be complete first. A phase gate is expressed by its gate module's ID (e.g. `"0.6"` = Phase 0 exit gate, `"2.9"` = Phase 2 gate). Never list a later module (no forward references). | `["0.0"]` |
 | `hasDebuggingLab` | boolean | **required** | `true` only if section 7 contains a runnable debugging lab with its broken-state setup **and** a solution file under `solutions/`. | `true` |
 | `hasTeardown` | boolean | **required** | `true` only if section 9 has teardown commands **and** a confirmation command with expected empty output. A module that creates nothing billable still needs `true` if it creates anything at all (files, containers, repos). | `true` |
-| `toolsPinned` | map (string → string) | **required** (may be `{}` only if the module uses no tools) | Tool name → **exact** version string, quoted. No `latest`, no ranges (`~>`, `>=`, `^`), no floating tags (`3.12`). Image tags and GitHub Actions use their exact pinned value. Must match section 10 "Versions". | `{ awscli: "2.33.14", terraform: "1.17.2", "actions/checkout": "v7" }` |
+| `toolsPinned` | map (string → string) | **required** (may be `{}` only if the module uses no tools) | Tool name → **exact** version string, quoted. No `latest`, no ranges (`~>`, `>=`, `^`), no floating tags (`3.12`, `main`). Image tags and GitHub Actions use their exact pinned value. **One exception**, see below. Must match section 10 "Versions". | `{ awscli: "2.33.14", terraform: "1.17.2", "actions/checkout": "v7" }` |
+
+### Exception: managed platforms versioned only by minor release
+
+Some managed services let you choose only a `MAJOR.MINOR` version; the provider applies patch releases itself and you cannot pin them (example: the Kubernetes version of an Amazon EKS cluster — https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html). For these, and only these:
+
+- the key **must end in `MinorVersion`** (e.g. `eksMinorVersion`), so the exception is visible in the key itself;
+- the value is `"MAJOR.MINOR"` (e.g. `"1.36"`);
+- section 10 "Last verified" must record the platform/patch version actually observed on the verification run (e.g. `kubectl version` server output).
+
+Any other key with a `MAJOR.MINOR`-only value is a floating pin and fails validation.
 
 ## Validation rules the site build applies
 
