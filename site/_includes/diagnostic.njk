@@ -1,0 +1,31 @@
+<section id="diagnostic-app" class="diag" aria-labelledby="diag-title">
+  <h2 id="diag-title">Your answer sheet (interactive)</h2>
+  <p>Work through the diagnostic above on paper first. Then grade yourself with the answer key and record each result here. This page applies the <a href="{{ diagnostic.gateRulesUrl }}">placement rule</a> and saves the result <strong>only in this browser</strong>.</p>
+
+  <p><label><input type="checkbox" id="diag-ready"> I've answered every item without looking at the key.</label></p>
+  <p id="diag-key" hidden>
+    {% if diagnostic.keyUrl %}Now grade yourself: <a href="{{ diagnostic.keyUrl }}" rel="nofollow" target="_blank">open the answer key</a> (opens in a new tab).{% else %}The answer key isn't published yet.{% endif %}
+  </p>
+
+  <form id="diag-form" hidden>
+    <table class="diag-table">
+      <thead><tr><th>Item</th><th>Module</th><th>Topic</th><th>Result</th></tr></thead>
+      <tbody>
+      {% for it in diagnostic.items %}
+        <tr>
+          <td>{{ it.label }}</td>
+          <td><span class="mid">{{ it.module }}</span></td>
+          <td>{{ it.topic }}</td>
+          <td>
+            <label><input type="radio" name="{{ it.id }}" value="pass" required> {{ "right" if it.type == "question" else "pass" }}</label>
+            <label><input type="radio" name="{{ it.id }}" value="fail"> {{ "wrong" if it.type == "question" else "fail" }}</label>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p><button type="submit" class="btn">Work out my starting point</button> <button type="button" class="btn btn-secondary" id="diag-reset">Clear saved result</button></p>
+  </form>
+
+  <div id="diag-result" class="callout" hidden aria-live="polite"></div>
+</section>

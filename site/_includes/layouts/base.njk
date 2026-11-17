@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ pageTitle }} · {{ site.title }}</title>
+  <meta name="robots" content="{{ robots }}">
+  {% if site.url and kind != "solution" %}<link rel="canonical" href="{{ site.url }}{{ page.url }}">{% endif %}
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body data-kind="{{ kind }}" data-page-url="{{ page.url }}">
+{% set thisModule = collections.modules | moduleFor(page.inputPath) %}
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="/">{{ site.title }}</a>
+  <a class="cta" href="{{ diagnostic.entryUrl }}">Start here</a>
+</header>
+<div class="layout">
+  <nav class="sidebar" aria-label="Course">
+    <p class="nav-heading"><a href="{{ diagnostic.entryUrl }}">Start here: entry diagnostic</a></p>
+    <p class="nav-heading"><a href="{{ diagnostic.gateRulesUrl }}">Gate rules</a></p>
+    <div id="your-path-mini" class="path-mini" hidden></div>
+    {% for p in phases %}
+      {% set mods = collections.modules | navModules(p.phase) %}
+      {% set hidden = collections.modules | hiddenCount(p.phase) %}
+      <section class="nav-phase">
+        <h2>{{ p.label }}</h2>
+        {% if mods.length %}
+          <ol>
+          {% for m in mods %}
+            <li data-module-id="{{ m.id }}"><a href="{{ m.url }}"{% if m.url == page.url %} aria-current="page"{% endif %}><span class="mid">{{ m.id }}</span> {{ m.title }}</a><span class="status" aria-hidden="true"></span></li>
+          {% endfor %}
+          </ol>
+        {% else %}
+          <p class="muted">No published modules yet.</p>
+        {% endif %}
+        {% if hidden %}<p class="muted small">{{ hidden }} module(s) hidden: front-matter incomplete (see build warnings).</p>{% endif %}
+      </section>
+    {% endfor %}
+  </nav>
+
+  <main id="main" class="content">
+    {% if kind == "solution" %}
+      <aside class="callout callout-warn">Answer key / solution. Try the exercise first. This page isn't in the course navigation or the sitemap.</aside>
+    {% endif %}
+
+    {% if kind == "module" and thisModule %}
+      <div class="module-meta">
+        {% if thisModule.verified.state == "verified" %}
+          <span class="badge badge-ok">Last verified {{ thisModule.verified.date }}</span>
+        {% elif thisModule.verified.state == "unverified" %}
+          <span class="badge badge-warn">Not yet verified</span>
+        {% else %}
+          <span class="badge badge-bad">Verification unknown (front-matter missing)</span>
+        {% endif %}
+        {% if thisModule.timeEstimate %}<span class="badge">{{ thisModule.timeEstimate }}</span>{% endif %}
+        {% if thisModule.hasDebuggingLab %}<span class="badge">Debugging lab</span>{% endif %}
+      </div>
+
+      {% if thisModule.costEstimate and thisModule.costAssumptions and thisModule.hasTeardown %}
+        <aside class="callout callout-cost" aria-label="Cost and teardown">
+          <p class="callout-title">Cost: {{ thisModule.costEstimate }} if you follow the teardown</p>
+          <p>{{ thisModule.costAssumptions }}</p>
+          <p><strong>Every lab has a teardown.</strong> Run the module's <a href="#9-teardown">Teardown</a> before you stop for the day.</p>
+        </aside>
+      {% else %}
+        <aside class="callout callout-bad" aria-label="Cost and teardown missing">
+          <p class="callout-title">Cost and teardown information missing</p>
+          <p>This module's front-matter doesn't declare its cost and teardown yet, so it isn't listed in the course navigation. Read its Cost estimate and Teardown sections before running anything.</p>
+        </aside>
+      {% endif %}
+
+      {% if thisModule.prerequisites.length %}
+        <p class="prereqs">Prerequisites: {% for p in thisModule.prerequisites %}<span class="mid">{{ p }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% set labs = thisModule.labsDir | labsUrl(site.repo) %}
+      {% if labs %}<p class="small"><a href="{{ labs }}">Lab files for this module on GitHub</a></p>{% endif %}
+    {% endif %}
+
+    <article class="prose">
+      {{ content | safe }}
+    </article>
+
+    {% if kind == "module" and thisModule and thisModule.inNav %}
+      <p><button type="button" class="btn" data-mark-done="{{ thisModule.id }}">Mark module {{ thisModule.id }} complete</button></p>
+    {% endif %}
+
+    {% if page.url == diagnostic.entryUrl %}
+      {% include "diagnostic.njk" %}
+    {% endif %}
+  </main>
+</div>
+<footer class="footer small muted">
+  Content: <code>/phases</code>, <code>/assessments</code>. Progress is saved only in this browser. <a href="/legacy/">Legacy single-page course</a>.
+</footer>
+<script type="application/json" id="site-data">{"modules": {{ collections.modules | json | safe }}, "diagnostic": {{ diagnostic | json | safe }}}</script>
+<script src="/assets/app.js" defer></script>
+</body>
+</html>

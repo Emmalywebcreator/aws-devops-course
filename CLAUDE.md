@@ -3,7 +3,7 @@
 ## What this repo is
 A phased, project-based DevOps course. Learners build one app (`aws-devops-platform`)
 across four phases, from zero AWS knowledge to a deployable, observable, secured system.
-Deployed at https://emmalywebcreator.github.io/aws_devops_course/
+Deployed on Vercel from this repo (static Eleventy build: `npm run build` → `_site/`). Base URL comes from env (`SITE_URL` / Vercel system vars), never hardcoded.
 
 ## Target learner
 Phase 0–1: career-switcher or junior dev with basic IT literacy, NO AWS experience.
@@ -67,7 +67,7 @@ A module may reference earlier modules but NEVER later ones.
 - `/phases/phase-0/…/module.md` — lesson content
 - `/phases/phase-0/…/labs/` — runnable labs, one dir per lab
 - `/phases/phase-0/…/solutions/` — reference solutions, not linked from lesson nav
-- `/site/` — the published site (GitHub Pages)
+- `/site/` — the site's layouts, assets and build scripts (Eleventy; config in `/eleventy.config.js`). It renders `/phases`, `/assessments`, `/solutions` — never copies them
 - Diagnostics and gates live in `/assessments/`
 
 ## Subagents (use these, not one mega-prompt)
