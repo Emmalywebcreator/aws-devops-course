@@ -22,12 +22,13 @@ Run `dev` and `staging` from the same Terraform modules with fully separate stat
 | `dev` env (ALB + 1 Fargate task 0.25 vCPU/0.5 GB + 3 public IPv4) | yes | ≈ USD 0.055/hour (Phase 2 contract §6) | ≤ 7 h | ≤ USD 0.39 |
 | `staging` env (same shape) | yes | ≈ USD 0.055/hour | ≤ 5 h | ≤ USD 0.28 |
 | `prod` env | — | **never applied** in this module (plan only) | 0 | USD 0 |
-| S3 state + ECR storage (bootstrap) | yes | cents/month (Phase 2 contract §2) | existing | ≈ USD 0 |
+| Monitoring per env (1 dashboard + 2 alarms, Phase 2 contract §6) | yes, monthly | USD 3/month dashboard + USD 0.10/month per alarm metric; **free tier not assumed** | 2 envs | ≈ USD 0.21/day while both exist |
+| S3 state + ECR storage (bootstrap, kept) | yes | ≈ USD 0.15/month (Phase 2 contract §2) | existing | ≈ USD 0.01 |
 | GitHub Actions minutes | — | free for public repos / within free minutes for private | ~10 min | USD 0 |
 
-- **Pricing assumptions:** Region `us-east-1`; on-demand; no free tier; per-env figure is the Phase 2 contract's legacy estimate, **not re-checked** against https://aws.amazon.com/fargate/pricing/, https://aws.amazon.com/elasticloadbalancing/pricing/, https://aws.amazon.com/vpc/pricing/ (checked: not yet).
-- **Total if you follow teardown:** under **USD 0.70**.
-- **If you skip teardown: ≈ USD 2.64/day** (dev + staging: 2 × 0.055 × 24).
+- **Pricing assumptions:** Region `us-east-1`; on-demand; no free tier; per-env figure from the Phase 2 contract §6 (author's figures as of 2026-11-17), **not yet checked** against https://aws.amazon.com/fargate/pricing/, https://aws.amazon.com/elasticloadbalancing/pricing/, https://aws.amazon.com/vpc/pricing/, https://aws.amazon.com/cloudwatch/pricing/.
+- **Total if you follow teardown:** under **USD 0.80**.
+- **If you skip teardown: ≈ USD 2.85/day** (dev + staging: 2 × 0.055 × 24 = 2.64, plus 2 × USD 3.20/month monitoring ÷ 30 = 0.21). With the CloudWatch free tier covering dashboards/alarms: ≈ USD 2.64/day.
 
 ## 5. Concepts
 
@@ -88,10 +89,12 @@ Edit the line(s) found by the last `grep` so staging passes `env = "staging"` to
 
 ```bash
 terraform -chdir=infra/envs/staging init -input=false
-terraform -chdir=infra/envs/staging apply -var "image_tag=$(terraform -chdir=infra/envs/dev output -raw image_tag 2>/dev/null || echo REPLACE_ME)"
+DEV_TAG="$(terraform -chdir=infra/envs/dev output -raw image_tag)"   # Phase 2 contract §4: dev exports image_tag
+echo "Deploying '$DEV_TAG' to staging"     # must print a sha-… tag, not ''
+[ -n "$DEV_TAG" ] && terraform -chdir=infra/envs/staging apply -var "image_tag=$DEV_TAG"
 ```
 
-If dev has no `image_tag` output, use the tag dev is running: `aws ecs describe-services --cluster orders-dev --services orders-api --query 'services[0].taskDefinition' --output text` → then `aws ecs describe-task-definition --task-definition <that ARN> --query 'taskDefinition.containerDefinitions[0].image' --output text` and take the part after `:`.
+If your dev env predates the `image_tag` output, add it (`output "image_tag" { value = var.image_tag }` in `infra/envs/dev/outputs.tf`) and `terraform -chdir=infra/envs/dev apply` before continuing.
 
 - **Expected result:** `Apply complete!` with resources named `orders-staging…`. `curl` to the staging ALB returns `{"status":"ok"}`.
 - **Verification command:**
@@ -104,7 +107,7 @@ aws s3 ls "s3://$STATE_BUCKET/envs/" --recursive | grep terraform.tfstate
 curl -fsS "http://$(terraform -chdir=infra/envs/staging output -raw alb_dns_name)/health"
 # expect: {"status":"ok"}
 
-terraform -chdir=infra/envs/dev plan -detailed-exitcode -var "image_tag=<dev's tag>" >/dev/null; echo "dev plan exit: $?"
+terraform -chdir=infra/envs/dev plan -detailed-exitcode -var "image_tag=$DEV_TAG" >/dev/null; echo "dev plan exit: $?"
 # expect: dev plan exit: 0   (creating staging changed nothing in dev)
 ```
 
@@ -132,7 +135,7 @@ EOF
 In each env's `variables.tf`, declare `desired_count`, `cpu`, `memory` (type `number`, no default) and pass them to `module "ecs_service"`. Then:
 
 ```bash
-diff <(sed 's/staging/ENV/g' infra/envs/staging/main.tf) <(sed 's/dev/ENV/g' infra/envs/dev/main.tf) && echo "main.tf identical apart from env name"
+diff <(sed 's/"staging"/"ENV"/g' infra/envs/staging/main.tf) <(sed 's/"dev"/"ENV"/g' infra/envs/dev/main.tf) && echo "main.tf identical apart from env name"
 ```
 
 - **Expected result:** the `diff` prints `main.tf identical apart from env name`; both plans show **no changes** (values are the same as before).
@@ -228,6 +231,7 @@ jobs:
 - **Verification command:** in the PR → **Checks** tab (UI as of 2026-11-17), all three `plan (…)` jobs are green and each job summary shows its last plan line. Locally:
 
 ```bash
+STATE_BUCKET="tfstate-$(aws sts get-caller-identity --query Account --output text)-us-east-1"
 aws s3 ls "s3://$STATE_BUCKET/envs/prod/"
 # expect: no terraform.tfstate (plan never writes state)
 ```
