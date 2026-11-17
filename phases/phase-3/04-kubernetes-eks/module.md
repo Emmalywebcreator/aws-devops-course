@@ -11,7 +11,7 @@ prerequisites: ["0.6", "2.9", "3.1"]
 hasDebuggingLab: true
 hasTeardown: true
 toolsPinned:
-  "eks-kubernetes": "1.36"
+  "eksMinorVersion": "1.36"
   "kubectl": "v1.36.6"
   "eksctl": "v0.231.0"
   "awscli": "2.33.14"
@@ -390,5 +390,5 @@ Merge `phase3/eks` with `k8s/` and `infra/eks/cluster.yaml` (Service back to `ty
 - **Date:** NOT YET VERIFIED — drafted 2026-11-17.
 - **Verified by:** —
 - **Region:** `us-east-1`
-- **Versions:** Kubernetes / EKS 1.36 · kubectl v1.36.6 · eksctl v0.231.0 · AWS CLI 2.33.14 · node AMI: eksctl default for 1.36 (record the AMI ID from `kubectl get nodes -o wide` / the node group)
+- **Versions:** Kubernetes / EKS 1.36 (front-matter `eksMinorVersion` — minor-version exception, `templates/module-frontmatter.md`; record the server patch version from `kubectl version` on the verification run) · kubectl v1.36.6 · eksctl v0.231.0 · AWS CLI 2.33.14 · node AMI: eksctl default for 1.36 (record the AMI ID from `kubectl get nodes -o wide` / the node group)
 - **Notes:** versions read from dl.k8s.io, GitHub releases and the EKS version page on 2026-11-17 (1.37, 1.36, 1.35, 1.34 in standard support). No command run against AWS. Default CLB behaviour confirmed against the EKS docs by the qa agent on 2026-11-17.

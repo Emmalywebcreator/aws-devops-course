@@ -49,7 +49,7 @@
         {% if thisModule.verified.state == "verified" %}
           <span class="badge badge-ok">Last verified {{ thisModule.verified.date }}</span>
         {% elif thisModule.verified.state == "unverified" %}
-          <span class="badge badge-warn">Not yet verified</span>
+          <span class="badge badge-warn">Not yet verified by a human</span>
         {% else %}
           <span class="badge badge-bad">Verification unknown (front-matter missing)</span>
         {% endif %}
