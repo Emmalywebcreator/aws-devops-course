@@ -38,7 +38,7 @@ DoD columns: **T** full template · **H** every command run by a human · **C** 
 
 | Phase | Module | Legacy source | Status | T | H | C | D | V | F | Q | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 0 | Phase 0 diagnostic gate (`/assessments/`) | Start-page self-assessment (self-reported only) | ⬜ | | | | | | | | |
+| 0 | Phase 0 diagnostic gate (`/assessments/phase-0-entry.md`, `gate-rules.md`; keys in `/solutions/assessments/`) | Start-page self-assessment (self-reported only) | 🟨 | n/a | | ✅ | n/a | ✅ | ✅ | | ✅ |
 | 0 | AWS account creation (new) | — none (AUDIT B2) | ⬜ | | | | | | | | |
 | 0 | Workstation setup (WSL + macOS/Linux) | M0 Lesson 0.1 | ⬜ | | | | | | | | |
 | 0 | Linux CLI, permissions, bash | M0 Lessons 0.2, 0.2b | ⬜ | | | | | | | | |
@@ -118,3 +118,4 @@ Network drill (M1 §1.5), 0.3b error table, M5 fail-a-gate demos, M3 failure inj
 | Date | What was done | Verified | Next |
 |---|---|---|---|
 | 2026-11-17 | CLAUDE.md saved; AUDIT.md written; template, dirs, subagents, PROGRESS.md created | Files exist; no content written | Decide D1 |
+| 2026-11-17 | Phase 0 entry diagnostic (12 Q + 3 tasks), gate rules (placement + exit gate), answer keys in `/solutions/assessments/`. Proposed P0-M01…M09 numbering (feeds D1). | T1 + T2 local steps dry-run on WSL 2; AWS CLI flags checked via `aws help`; no real-account run | Human run of diagnostic; qa pass on citations; confirm module order in D1 |
