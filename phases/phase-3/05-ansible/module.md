@@ -9,7 +9,7 @@ Configure two EC2 hosts to run the `aws-devops-platform` container under systemd
 - **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)); an image `sha-…` exists in ECR `aws-devops-platform`.
 - **Modules:** [3.1 Multi-environment Terraform](../01-multi-env-terraform/module.md) (reads the dev image tag from `release.auto.tfvars`).
 - **You must already be able to:** SSH to an EC2 instance with a key pair and a security group limited to your IP (Phase 0 module 0.5); write and apply Terraform (Phase 2).
-- **Tools:** Python 3.12 venv, Terraform 1.17.2, AWS CLI 2.33.14, an SSH key pair at `~/.ssh/id_ed25519` (create with `ssh-keygen -t ed25519` if needed). Installed in Lab 2: ansible-core **2.21.6**, collections `amazon.aws` **12.1.0** and `community.docker` **5.4.0**, ansible-lint **26.11.0**.
+- **Tools:** Python 3.12 venv, Terraform 1.17.2, AWS CLI 2.33.14, an SSH key pair at `~/.ssh/id_ed25519` (create with `ssh-keygen -t ed25519` if needed). Installed in Lab 2: ansible-core **2.21.6**, collection `amazon.aws` **12.1.0**, ansible-lint **26.11.0**.
 
 ## 3. Time estimate
 
@@ -24,7 +24,7 @@ Configure two EC2 hosts to run the `aws-devops-platform` container under systemd
 | 2 × public IPv4 | yes | USD 0.005/hour each | ≤ 6 h | ≤ USD 0.06 |
 | ECR data transfer to EC2 (same region) | — | no charge in the same region (assumption) | ~2 × 200 MB | USD 0 |
 
-- **Pricing assumptions:** Region `us-east-1`; on-demand Linux; no free tier assumed (on accounts from 15 July 2025, `t3.micro` is free-tier eligible — see Phase 0 module 0.0). **Not re-checked** against https://aws.amazon.com/ec2/pricing/on-demand/, https://aws.amazon.com/ebs/pricing/, https://aws.amazon.com/vpc/pricing/ (checked: not yet).
+- **Pricing assumptions:** Region `us-east-1`; on-demand Linux; no free tier assumed (on accounts from 15 July 2025, `t3.micro` is free-tier eligible — see Phase 0 module 0.0). Author's figures as of 2026-11-17, **not yet checked** against https://aws.amazon.com/ec2/pricing/on-demand/, https://aws.amazon.com/ebs/pricing/, https://aws.amazon.com/vpc/pricing/.
 - **Total if you follow teardown:** under **USD 0.25**.
 - **If you skip teardown: ≈ USD 0.78/day** ((2 × 0.0104 + 2 × 0.005) × 24 = 0.74 + disks 16 × 0.08 / 30 = 0.04).
 
@@ -91,9 +91,7 @@ provider "aws" {
 variable "my_ip_cidr" { type = string } # your public IP as x.x.x.x/32
 
 data "aws_vpc" "default" { default = true }
-data "aws_ssm_parameter" "al2023" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
-}
+variable "ami_id" { type = string } # pinned Amazon Linux 2023 AMI — recorded in terraform.tfvars (see below)
 
 resource "aws_key_pair" "ops" {
   key_name   = "orders-ops"
@@ -142,20 +140,31 @@ resource "aws_iam_instance_profile" "ops" {
 
 resource "aws_instance" "host" {
   count                  = 2
-  ami                    = data.aws_ssm_parameter.al2023.value
+  ami                    = var.ami_id
   instance_type          = "t3.micro"
   key_name               = aws_key_pair.ops.key_name
   vpc_security_group_ids = [aws_security_group.ops.id]
   iam_instance_profile   = aws_iam_instance_profile.ops.name
   metadata_options { http_tokens = "required" }
   tags = { Name = "orders-host-${count.index + 1}", role = "orders-host" }
+  # Provider default_tags don't reach the root volume; tag it explicitly so teardown checks can find it.
+  volume_tags = { Name = "orders-host-${count.index + 1}", course = "aws-devops-platform", env = "ansible-lab" }
 }
 
-output "ami_id"     { value = data.aws_ssm_parameter.al2023.value }
+output "ami_id"     { value = var.ami_id }
 output "public_ips" { value = aws_instance.host[*].public_ip }
 ```
 
-The AMI parameter always resolves to the current Amazon Linux 2023 image; the `ami_id` output records exactly which one you used. **Write it in your notes** — that's your pin. (Changing it later replaces both instances; that's expected.)
+**Pin the AMI.** Look up the current Amazon Linux 2023 image ID **once** and commit it, so every apply uses the same image until you deliberately change it:
+
+```bash
+AMI_ID="$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
+  --query Parameter.Value --output text)"
+echo "ami_id = \"$AMI_ID\"" > infra/ops-hosts/terraform.tfvars     # commit this file — it's your pin
+cat infra/ops-hosts/terraform.tfvars
+```
+
+(The SSM path is a moving "latest" pointer — fine for *finding* an ID, wrong for *building* from. Bumping the pinned ID later replaces both instances; that's expected.)
 
 ```bash
 STATE_BUCKET="tfstate-$(aws sts get-caller-identity --query Account --output text)-us-east-1"
@@ -181,6 +190,7 @@ ssh -o StrictHostKeyChecking=accept-new ec2-user@"$IP1" 'cat /etc/os-release | h
 - **Task:**
 
 ```bash
+mkdir -p ansible/inventory ansible/group_vars ansible/roles/orders_host/{tasks,handlers,templates}
 python3 -m venv .venv-ansible && source .venv-ansible/bin/activate
 cat > ansible/requirements.txt <<'EOF'
 ansible-core==2.21.6
@@ -194,8 +204,6 @@ cat > ansible/requirements.yml <<'EOF'
 collections:
   - name: amazon.aws
     version: "12.1.0"
-  - name: community.docker
-    version: "5.4.0"
 EOF
 ansible-galaxy collection install -r ansible/requirements.yml
 ```
@@ -245,7 +253,7 @@ ansible role_orders_host -m ansible.builtin.ping
 # expect: two "pong" results
 ```
 
-(TODO(verify): exact group name sanitisation for `orders-host` — if `ansible-inventory --graph` shows a different name, use that name in Labs 3–4. Also confirm ansible-core 2.21 still supports the Amazon Linux 2023 system Python (3.9) as a target: https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html. If not, install a newer `python3.x` package on the hosts in Lab 1's user data and set `ansible_python_interpreter`.)
+(The tag value `orders-host` becomes group `role_orders_host`: Ansible replaces characters that aren't valid in group names, such as `-`, with `_`. ansible-core 2.21 supports target Python 3.9–3.14, so Amazon Linux 2023's system Python 3.9 works — https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html.)
 
 - **Teardown command:** `deactivate` (the venv is local and free).
 - **Cost note:** USD 0.
@@ -467,7 +475,9 @@ deactivate 2>/dev/null || true
 aws ec2 describe-instances --filters Name=tag:env,Values=ansible-lab Name=instance-state-name,Values=pending,running,stopping,stopped \
   --query 'Reservations[].Instances[].InstanceId' --output text         # expect: no output
 aws ec2 describe-volumes --filters Name=tag:env,Values=ansible-lab --query 'Volumes[].VolumeId' --output text
-                                                                        # expect: no output (root volumes inherit default tags — TODO(verify) volume tag propagation; if empty-but-unsure, also check describe-volumes --filters Name=status,Values=available)
+                                                                        # expect: no output (root volumes carry volume_tags)
+aws ec2 describe-volumes --filters Name=status,Values=available --query 'Volumes[].VolumeId' --output text
+                                                                        # expect: no output (no detached disks of any kind)
 aws ec2 describe-key-pairs --key-names orders-ops 2>&1 | grep -q InvalidKeyPair.NotFound && echo "key pair gone"
 aws iam get-role --role-name orders-ops-host 2>&1 | grep -q NoSuchEntity && echo "role gone"
                                                                         # expect: key pair gone · role gone
@@ -482,5 +492,5 @@ Merge `phase3/ansible` with `ansible/` and `infra/ops-hosts/` (never commit `.ve
 - **Date:** NOT YET VERIFIED — drafted 2026-11-17.
 - **Verified by:** —
 - **Region:** `us-east-1`
-- **Versions:** ansible-core 2.21.6 (controller Python 3.12; 2.22 requires Python ≥ 3.13) · ansible-lint 26.11.0 · amazon.aws 12.1.0 · community.docker 5.4.0 · boto3/botocore 1.44.4 · Terraform 1.17.2 · AWS provider ~> 6.73 · AWS CLI 2.33.14 · AMI: Amazon Linux 2023 resolved via SSM (record the `ami_id` output)
-- **Notes:** versions read from PyPI and Ansible Galaxy on 2026-11-17. No command run against AWS. Target-Python support and inventory group naming marked `TODO(verify)`.
+- **Versions:** ansible-core 2.21.6 (controller Python 3.12; 2.22 requires Python ≥ 3.13) · ansible-lint 26.11.0 · amazon.aws 12.1.0 · boto3/botocore 1.44.4 · Terraform 1.17.2 · AWS provider ~> 6.73 · AWS CLI 2.33.14 · AMI: Amazon Linux 2023, ID pinned in `infra/ops-hosts/terraform.tfvars` (looked up once via SSM)
+- **Notes:** versions read from PyPI and Ansible Galaxy on 2026-11-17. No command run against AWS. Target-Python support and inventory group naming confirmed by the qa agent on 2026-11-17.
