@@ -1,88 +1,61 @@
-# Rubric · Phase 0 exit gate, Gate C written explanations
+# Rubric · Phase 0 exit gate, Gate D written explanations
 
-> Grading rubric for Gate C in `assessments/gate-rules.md`. **Not linked from course navigation.**
-> Score each explanation 0 / 1 / 2. Pass = total ≥ 10/12, **E1, E2, E3 each = 2**, none = 0.
+> Grading rubric for Gate D in `assessments/gate-rules.md`. **Not linked from course navigation.**
+> Score each explanation 0 / 1 / 2. Pass = every explanation ≥ 1, total ≥ 5/6, and the write-up passes.
 > Self-graders: quote the sentence that earns each point you award.
 
-**General scoring:** **2** = hits every *required* point, correctly, in the learner's own words. **1** = hits at least half the required points and states nothing dangerously wrong. **0** = misses most points, **or** states anything in the "automatic 0" column (a misconception that would cost money or compromise the account).
+**General scoring:** **2** = hits every *required* point, correctly, in the learner's own words. **1** = hits at least half the required points and states nothing dangerously wrong. **0** = misses most points, **or** states anything in the "automatic 0" column.
 
 ---
 
-## E1 — Root user and how you sign in (P0-M07, P0-M08) — must score 2
+## E1 — IAM evaluation (0.5)
 
 | Required points | Automatic 0 if it says… |
 |---|---|
-| Root has unrestricted access to the account and can't be limited by IAM policies, so compromise = total loss (incl. billing). | "Root is fine if the password is strong." |
-| Root has MFA and **no access keys**; used only for root-only tasks. | Using root access keys for the CLI. |
-| Daily sign-in is through **IAM Identity Center** with a permission set. | Storing long-lived access keys in `~/.aws/credentials` as the normal approach. |
-| CLI gets **temporary** credentials via `aws configure sso` / `aws sso login`; they expire, nothing long-lived is stored. | |
+| By default everything is **denied** (implicit deny). | "Allowed unless something denies it." |
+| An **allow** in an applicable policy grants the action — if nothing denies it. | |
+| An **explicit deny** anywhere overrides every allow. | An allow can override a deny, or order of attachment matters. |
+| A concrete example from the capstone (e.g. the admin user is allowed `ec2:RunInstances` by `AdministratorAccess`; an explicit deny on `s3:DeleteBucket` would block deleting the logs bucket even so). | |
 
 **Model answer (2/2):**
-> The root user can do anything in the account, including closing it and changing billing, and no IAM policy can restrict it. If someone steals it, they own everything. So I turned on MFA for root, made sure it has no access keys, and only use it for the handful of tasks that require it. Day to day I sign in through IAM Identity Center as my own user, with a permission set that gives me what I need. For the CLI, I ran `aws configure sso` once to create a profile, and each session I run `aws sso login`. That opens the browser, I approve, and the CLI receives temporary credentials that expire on their own. There is no secret key sitting in a file on my laptop that could leak.
+> AWS starts from "no": if no policy says anything about an action, it's denied. That's the implicit deny. Then it looks at every policy that applies to the request. If any of them explicitly denies the action, the answer is deny, full stop — no allow can override it. If there's no explicit deny and at least one policy allows the action, it's allowed. In my capstone my admin user has AdministratorAccess, so `ec2:RunInstances` was allowed. If I had added a policy denying `s3:DeleteBucket`, my teardown script would have failed to delete the logs bucket even though AdministratorAccess allows `s3:*`, because the explicit deny wins.
 
-Sources: https://docs.aws.amazon.com/IAM/latest/UserGuide/root-user-best-practices.html · https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html
+Source: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html (the full logic also includes SCPs, resource policies, permission boundaries and session policies — not required at Phase 0)
 
-## E2 — What a budget does and doesn't do (P0-M08) — must score 2
+## E2 — A request path through a VPC (0.2, 0.5)
 
 | Required points | Automatic 0 if it says… |
 |---|---|
-| A budget **notifies** (email/SNS) when actual or forecasted spend crosses a threshold. | The budget stops, caps, or prevents charges. |
-| It does **not** stop or delete resources; charges continue. | |
-| Alerts are not instant — billing data lags (learner can say "can be delayed by hours"). | |
-| A concrete first-10-minutes plan: sign in, find **what** is costing money (Bills / Cost Explorer by service & region), stop/delete it, verify it's gone, check for anything unexpected (possible compromise). | |
+| DNS / the public IP routes to AWS; the **internet gateway** maps the public IP to the instance's private IP. | The instance "has the public IP on its network card" with no IGW. |
+| The **public subnet's route table** has `0.0.0.0/0 → igw-…`, which is what makes it public (also for the return path). | |
+| The **security group** allows inbound on the app port from the learner's IP; return traffic is allowed automatically (stateful). | Security groups need an outbound rule for replies. |
+| The instance's app answers; the reply goes back the same way. | |
+| Private subnet: no route to the IGW and no public IP → unreachable from the internet; to reach *out* it needs a NAT Gateway (or VPC endpoints). | |
 
 **Model answer (2/2):**
-> My budget is USD 10/month with alerts at 80% actual and 100% forecasted, sent to my email. All it does is tell me. It won't stop or delete anything, so a forgotten resource keeps billing after the alert. Billing data is also delayed by hours, so by the time the email arrives I've already spent the money. If I get an alert, I sign in through SSO and open the bill to see which service and which region the charge is coming from. I delete that resource, then re-run the "is it gone" check for it. If I see a service or region I never used, I treat it as a possible compromise and lock down access first.
+> The browser looks up the address and sends the request to the public IP. That IP belongs to AWS, and the VPC's internet gateway translates it to my instance's private IP. The packet can get in because my subnet's route table sends 0.0.0.0/0 to the internet gateway — that route is what makes the subnet public. Next the security group checks the request: it allows TCP 80 from my IP only, so my browser gets in and anyone else is dropped. My hello-world app answers, and because security groups are stateful the reply is allowed out without a separate rule, back through the internet gateway to me. If the instance were in a private subnet, its route table would have no route to the internet gateway and it would have no public IP, so nobody on the internet could reach it. To download updates it would need a NAT Gateway in a public subnet.
 
-Note for graders: the "billing data lag" point — accept any correct statement that alerts aren't real-time; cite https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html. Mention of budget *actions* is a bonus, not required; claiming a plain alert stops resources is an automatic 0.
+Sources: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html · https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html · https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
 
-## E3 — Teardown proof (P0-M09) — must score 2
-
-| Required points | Automatic 0 if it says… |
-|---|---|
-| Lists **every** resource the capstone created (matches the capstone module's resource list). | "I deleted it in the console so it's gone" with no check. |
-| States a **deletion order** and why (dependents before what they depend on — e.g. empty a bucket before deleting it). | Claims of deletion with Gate B evidence that shows otherwise. |
-| For each resource, names the **direct check** used and its "not found" result (Gate B G5). | |
-| Mentions the tag-based sweep (G4) **and** local cleanup (G6). | |
-
-**Model answer shape (2/2)** — exact content depends on the capstone module (not yet written):
-> I created [resource list from capstone]. I deleted them in this order: [order], because [dependency reason, e.g. a bucket must be empty before it can be deleted]. To prove each was gone I ran [direct check per resource] and got [not-found output]. Then I ran the tag search for `course=aws-devops-platform`, `phase=0` in us-east-1, which returned `[]`, and the Docker label filters, which printed nothing. All of the output is pasted in my evidence file.
-
-*Maintainer TODO: replace the bracketed shape with a concrete model answer once P0-M09 defines its resources.*
-
-## E4 — DNS vs connection failure (P0-M03)
+## E3 — Why NAT costs money (0.5)
 
 | Required points | Automatic 0 if it says… |
 |---|---|
-| `(6)`: hostname couldn't be resolved to an IP; no connection was attempted. | Both errors mean "the server is down". |
-| First check for (6): spelling of the hostname / DNS lookup (`dig`, `nslookup`, `getent hosts`). | |
-| `(7)`: name resolved, but the TCP connection to that IP:port failed (nothing listening, refused, or blocked). | |
-| First check for (7): is the service running/listening on that port, and is a firewall/security rule blocking it (e.g. `nc -vz host port`, `ss -ltn` on the server). | |
+| A NAT Gateway lets instances in a **private** subnet start connections **out** to the internet without being reachable from it. | NAT lets the internet reach private instances. |
+| Two charges: **per hour** it exists, and **per GB processed**. | "Free tier covers it" / "only charged for traffic". |
+| It bills hourly **even with zero traffic** — it's a managed resource that exists until you delete it (plus its Elastic IP). | |
+| The capstone avoided it: everything in a public subnet, protected by a security group; no private subnet needed outbound access. | |
 
-Source: https://curl.se/libcurl/c/libcurl-errors.html
+**Model answer (2/2):**
+> A NAT Gateway lets servers in a private subnet reach the internet (for updates, APIs) while staying unreachable from the internet. AWS charges for it two ways: an hourly charge for every hour it exists, and a charge for every gigabyte that passes through it. The hourly part is the trap — it bills around the clock even if nothing uses it, roughly a dollar a day, until you delete it. My capstone avoided it by putting the one instance in a public subnet with a public IP and a security group that only allows my IP, so nothing needed a private subnet with outbound access.
 
-## E5 — Leaked secret response (P0-M04)
+Source: https://aws.amazon.com/vpc/pricing/ (NAT Gateway: per-hour and per-GB charges) · https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html
 
-| Required points | Automatic 0 if it says… |
-|---|---|
-| **First** revoke/rotate the secret at its source (e.g. deactivate the AWS access key). | Deleting the file / making the repo private is enough. |
-| Deleting the file leaves it in Git history and in any clone/fork/scrape already made. | Rewriting history first and never rotating. |
-| Then remove it from history (e.g. `git filter-repo` per GitHub Docs) and force-push; tell collaborators to re-clone. | |
-| Prevention: `.gitignore` for `.env`-style files / secret scanning / never put secrets in the repo. | |
+## Write-up checklist (pass/fail)
 
-Source: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository
+- [ ] Has three parts: **what I built**, **what I broke**, **how I fixed it**.
+- [ ] "What I broke" describes at least one real failure from the capstone (an error message or wrong behaviour), not a hypothetical.
+- [ ] "How I fixed it" says how the learner *found* the cause, not just what they changed.
+- [ ] Fits on one page.
 
-## E6 — Why pin versions (P0-M05, P0-M06)
-
-| Required points | Automatic 0 if it says… |
-|---|---|
-| Pinning makes builds **reproducible**: same inputs → same result today and in a month. | Pinning is "for performance" or "required by Docker". |
-| Unpinned (`:latest`, `pip install requests`) can change underneath you without any code change. | |
-| One **concrete** breakage example (e.g. a new base image drops a package / bumps Python and the app fails to start; a library major version removes a function). | |
-| Upgrades become deliberate: change the pin, test, commit. | |
-
-Source: https://docs.docker.com/build/building/best-practices/
-
----
-
-*Status: drafted 2026-11-17; citations not yet checked by the `qa` agent; E3 model answer pending P0-M09.*
+*Status: rewritten 2026-11-17 to the 0.0–0.6 spec (Gate D = spec's three explanations + write-up).*
