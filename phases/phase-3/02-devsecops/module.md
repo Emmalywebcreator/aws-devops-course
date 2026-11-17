@@ -24,7 +24,7 @@ Make the `aws-devops-platform` pipeline refuse leaked secrets, vulnerable depend
 | GitHub Actions minutes | — | free for public repos / within the free allowance for private | ~30 min | USD 0 |
 | Scanners (gitleaks, pip-audit, bandit, Trivy, Checkov, conftest) | — | open source, run locally/CI | — | USD 0 |
 
-- **Pricing assumptions:** Region `us-east-1`; on-demand; no free trial assumed (new secrets may get a 30-day trial, see pricing page). **Not re-checked** against https://aws.amazon.com/secrets-manager/pricing/ (checked: not yet). Env figure from the Phase 2 contract.
+- **Pricing assumptions:** Region `us-east-1`; on-demand; no free trial assumed (new secrets may get a 30-day trial, see pricing page). Secrets Manager figure is the author's as of 2026-11-17, **not yet checked** against https://aws.amazon.com/secrets-manager/pricing/. Env figure from the Phase 2 contract §6.
 - **Total if you follow teardown:** under **USD 0.25**.
 - **If you skip teardown: ≈ USD 1.33/day** (dev env 0.055 × 24 = 1.32 + secret 0.40 / 30 = 0.013).
 
@@ -41,7 +41,7 @@ Every security problem is cheaper to stop before it's deployed. A leaked key fou
 | **Secret scanning** | Keys/tokens committed to Git | gitleaks **8.30.1** |
 | **Dependency audit** | Python packages with known vulnerabilities (CVEs) | pip-audit **2.10.1** |
 | **Static analysis (SAST)** | Risky code patterns (e.g. `subprocess(shell=True)`, hard-coded passwords) | bandit **1.9.4** |
-| **Image scanning** | Vulnerable OS packages and libraries inside the built image | Trivy **0.76.2** — pinned on purpose: 0.69.4–0.69.6 were malicious after the March 2026 supply-chain attack (CVE-2026-33634) |
+| **Image scanning** | Vulnerable OS packages and libraries inside the built image | Trivy **0.76.2** — pinned on purpose: compromised releases were published in the March 2026 supply-chain attack (CVE-2026-33634; [OSV lists v0.69.4](https://osv.dev/vulnerability/CVE-2026-33634); the legacy course lists 0.69.4–0.69.6) |
 | **IaC scanning** | Insecure Terraform (open security groups, unencrypted storage) against hundreds of built-in rules | Checkov **3.4.5** |
 
 ### Policy-as-code
@@ -69,9 +69,10 @@ If Terraform sets a secret's value, the value is stored in Terraform state. This
 > **Region:** `us-east-1` everywhere. `export AWS_REGION=us-east-1 AWS_PROFILE=<your-admin-profile>`. Work in your `aws-devops-platform` repo on a branch: `git switch -c phase3/devsecops`. Install scanner tools into the project venv:
 >
 > ```bash
-> source .venv/bin/activate
-> pip install pip-audit==2.10.1 bandit==1.9.4 checkov==3.4.5
+> python3 -m venv .venv-security && source .venv-security/bin/activate   # its own venv: checkov pins its own boto3
 > printf 'pip-audit==2.10.1\nbandit==1.9.4\ncheckov==3.4.5\n' > requirements-security.txt
+> pip install -r requirements-security.txt
+> echo ".venv-security/" >> .gitignore
 > ```
 >
 > Binary tools (Linux x86_64 / WSL; macOS: pick the `darwin` asset from the same release page):
@@ -80,7 +81,7 @@ If Terraform sets a secret's value, the value is stored in Terraform state. This
 > mkdir -p ~/.local/bin
 > curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar xz -C ~/.local/bin gitleaks
 > curl -fsSL https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz | tar xz -C ~/.local/bin conftest
-> gitleaks version      # expect: 8.30.1  (TODO(verify): exact output format)
+> gitleaks version      # expect: 8.30.1
 > conftest --version    # expect: Conftest: 0.71.1 …
 > ```
 >
@@ -114,11 +115,24 @@ pip-audit -r app/requirements.txt --strict
 bandit -r app -ll
 ```
 
-Then prove the gate works: temporarily add a known-vulnerable pin to `app/requirements.txt` — `requests==2.19.1` (TODO(verify): confirm it still reports a CVE in the current advisory DB) — and add this line to `app/main.py`: `import subprocess; subprocess.call("echo hi", shell=True)`.
+Then prove both gates work:
 
-- **Expected result:** both commands pass on the clean code; with the bad pin, `pip-audit` lists at least one vulnerability for `requests` and exits non-zero; with the bad line, `bandit` reports **B602** (`subprocess_popen_with_shell_equals_true`) and exits non-zero.
+```bash
+# A known-vulnerable package, audited on its own (an old requests pin conflicts with FastAPI's
+# dependencies, so mixing it into app/requirements.txt gives a resolver error instead of a CVE report)
+printf 'requests==2.19.1\n' > /tmp/vuln-reqs.txt
+pip-audit -r /tmp/vuln-reqs.txt --no-deps; echo "pip-audit: $?"
+
+# A risky pattern bandit rates HIGH: shell=True with a command built from a variable
+printf '\nimport os, subprocess\nsubprocess.call(f"echo {os.getenv(\x27USER\x27)}", shell=True)\n' >> app/main.py
+bandit -r app -ll; echo "bandit: $?"
+```
+
+(A *literal* string with `shell=True` is rated LOW and hidden by `-ll`; a command built from input is what actually gets people hacked.)
+
+- **Expected result:** both commands pass on the clean code; `pip-audit` on `/tmp/vuln-reqs.txt` lists vulnerabilities for `requests` 2.19.1 (e.g. CVE-2018-18074) and exits non-zero; `bandit` reports **B602** (`subprocess_popen_with_shell_equals_true`, severity HIGH) and exits non-zero.
 - **Verification command:** `pip-audit -r app/requirements.txt --strict; echo "pip-audit: $?"; bandit -r app -ll -q; echo "bandit: $?"` → both `0` after you revert.
-- **Teardown command:** `git checkout -- app/requirements.txt app/main.py`
+- **Teardown command:** `git checkout -- app/main.py && rm -f /tmp/vuln-reqs.txt`
 - **Cost note:** USD 0.
 
 ### Lab 3 — Scan the image
@@ -188,6 +202,15 @@ deny contains msg if {
   msg := sprintf("%s opens port 22 to 0.0.0.0/0", [rc.address])
 }
 
+# ip_protocol "-1" means all protocols and all ports (from_port/to_port are null), so 22 is included.
+deny contains msg if {
+  some rc in input.resource_changes
+  rc.type == "aws_vpc_security_group_ingress_rule"
+  rc.change.after.cidr_ipv4 == "0.0.0.0/0"
+  rc.change.after.ip_protocol == "-1"
+  msg := sprintf("%s opens ALL ports (including 22) to 0.0.0.0/0", [rc.address])
+}
+
 deny contains msg if {
   some rc in input.resource_changes
   rc.type == "aws_security_group"
@@ -232,7 +255,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
-        with: { python-version: "3.12" }
+        with: { python-version: "3.12.16" }
       - run: pip install -r requirements-security.txt
       - run: pip-audit -r app/requirements.txt --strict
       - run: bandit -r app -ll
@@ -278,16 +301,24 @@ jobs:
 **6a. Terraform creates the secret (no value)** — in `infra/envs/dev/secrets.tf`:
 
 ```hcl
+variable "enable_api_key_secret" {
+  type    = bool
+  default = false # off unless a module needs it, so later modules don't create an empty secret
+}
+
 resource "aws_secretsmanager_secret" "api_key" {
-  name                    = "orders/dev/api-key"
-  recovery_window_in_days = 7   # deletes are recoverable for 7 days
+  count = var.enable_api_key_secret ? 1 : 0
+  name  = "orders/dev/api-key"
+  # Course only: destroy deletes immediately, so teardown leaves nothing billing.
+  # In production keep 7–30 days so a mistaken delete can be undone (the incident lab shows why).
+  recovery_window_in_days = 0
 }
 ```
 
-and pass it to the service: `container_secrets = { ORDERS_API_KEY = aws_secretsmanager_secret.api_key.arn }` (the Phase 2 module grants the task execution role `secretsmanager:GetSecretValue` on exactly the ARNs in this map — contract §4).
+and pass it to the service: `container_secrets = var.enable_api_key_secret ? { ORDERS_API_KEY = aws_secretsmanager_secret.api_key[0].arn } : {}` (the Phase 2 module grants the task execution role `secretsmanager:GetSecretValue` on exactly the ARNs in this map — contract §4). Set `enable_api_key_secret = true` in `infra/envs/dev/terraform.tfvars` for this module.
 
 ```bash
-terraform -chdir=infra/envs/dev apply -target=aws_secretsmanager_secret.api_key
+terraform -chdir=infra/envs/dev apply -target='aws_secretsmanager_secret.api_key[0]'
 ```
 
 **6b. Set the value from the CLI** so it never touches Terraform state:
@@ -366,10 +397,11 @@ Answers: `solutions/self-check.md`.
 
 ```bash
 export AWS_REGION=us-east-1
-# Delete the secret immediately (course only — in production you'd keep the recovery window)
-aws secretsmanager delete-secret --secret-id orders/dev/api-key --force-delete-without-recovery
-terraform -chdir=infra/envs/dev state rm aws_secretsmanager_secret.api_key
+# 1. Destroy the env. Terraform removes the service before the secret it references,
+#    and recovery_window_in_days = 0 deletes the secret immediately.
 ./scripts/teardown.sh dev
+# 2. Turn the secret off for later modules, so the next dev apply doesn't recreate it
+sed -i 's/^enable_api_key_secret *= *true/enable_api_key_secret = false/' infra/envs/dev/terraform.tfvars
 docker image rm aws-devops-platform:scan 2>/dev/null || true
 ```
 
@@ -378,13 +410,16 @@ docker image rm aws-devops-platform:scan 2>/dev/null || true
 ```bash
 aws secretsmanager list-secrets --include-planned-deletion \
   --query "SecretList[?starts_with(Name, 'orders/')].[Name,DeletedDate]" --output text
-# expect: no output (TODO(verify): a force-deleted secret may appear briefly)
+# expect: no output. Deletion runs in the background — if the secret still shows, wait a minute and re-run.
+# If it shows a DeletedDate (scheduled, e.g. left over from the incident lab): restore it, then delete it immediately:
+#   aws secretsmanager restore-secret --secret-id orders/dev/api-key
+#   aws secretsmanager delete-secret --secret-id orders/dev/api-key --force-delete-without-recovery
 aws resourcegroupstaggingapi get-resources --tag-filters Key=env,Values=dev \
   --query 'ResourceTagMappingList[].ResourceARN' --output text
 # expect: no output
 ```
 
-Merge `phase3/devsecops`: the security workflow, `policy/`, `requirements-security.txt` and `secrets.tf` stay in the repo for later modules.
+Merge `phase3/devsecops` with `enable_api_key_secret = false`: the security workflow, `policy/`, `requirements-security.txt` and `secrets.tf` stay in the repo; the secret is only created when a module turns it on.
 
 ## 10. Last verified
 
@@ -392,4 +427,4 @@ Merge `phase3/devsecops`: the security workflow, `policy/`, `requirements-securi
 - **Verified by:** —
 - **Region:** `us-east-1`
 - **Versions:** gitleaks 8.30.1 · pip-audit 2.10.1 · bandit 1.9.4 · Trivy 0.76.2 (`aquasec/trivy:0.76.2`) · Checkov 3.4.5 · conftest 0.71.1 · Terraform 1.17.2 · AWS CLI 2.33.14 · Python 3.12 · runner `ubuntu-24.04` · `actions/checkout@v7` · `actions/setup-python@v7` · `aws-actions/configure-aws-credentials@v6` · `hashicorp/setup-terraform@v4`
-- **Notes:** versions read from PyPI and GitHub release APIs on 2026-11-17. **Scanner CLI flags were not run** (downloading binaries was not permitted in the authoring session) — they follow each tool's documented interface; `TODO(verify)` marks the uncertain ones. Written against `phases/phase-2/CONTRACT.md`.
+- **Notes:** versions read from PyPI and GitHub release APIs on 2026-11-17. **Scanner CLI flags were not run** (downloading binaries was not permitted in the authoring session) — they follow each tool's documented interface and were reviewed by the qa agent on 2026-11-17 (gitleaks version output, bandit B602 severity, requests 2.19.1 CVEs confirmed from source/advisory data). Written against `phases/phase-2/CONTRACT.md`.
