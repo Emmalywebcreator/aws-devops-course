@@ -87,7 +87,7 @@ export default function (eleventyConfig) {
   // ---- what is (and isn't) content ----
   for (const p of [
     "README.md", "CLAUDE.md", "AUDIT.md", "PROGRESS.md", "MAPPING.md", "index.html",
-    "templates/**", ".claude/**", "node_modules/**", "_site/**", "site/lib/**", "site/scripts/**",
+    "templates/**", "phases/**/scope.md", ".claude/**", "node_modules/**", "_site/**", "site/lib/**", "site/scripts/**",
   ]) eleventyConfig.ignores.add(p);
 
   eleventyConfig.addPassthroughCopy({ "site/assets": "assets" });
@@ -183,11 +183,13 @@ export default function (eleventyConfig) {
     const diag = parseDiagnostic();
     const moduleIds = new Set(
       fs.readdirSync("phases").flatMap((p) => (/^phase-\d$/.test(p) ? fs.readdirSync(path.join("phases", p)) : []).map((m) => {
-        const n = m.match(/^(\d+)-/); return n ? `${p.split("-")[1]}.${Number(n[1])}` : null;
+        const n = m.match(/^(\d+)-/);
+        // a module "exists" only once its module.md exists (scope.md-only folders are plans)
+        return n && fs.existsSync(path.join("phases", p, m, "module.md")) ? `${p.split("-")[1]}.${Number(n[1])}` : null;
       })).filter(Boolean),
     );
     for (const m of new Set(diag.items.map((i) => i.module))) {
-      if (!moduleIds.has(m)) warn(ENTRY_DIAGNOSTIC, `diagnostic routes to module ${m}, which has no folder under /phases yet`);
+      if (!moduleIds.has(m)) warn(ENTRY_DIAGNOSTIC, `diagnostic routes to module ${m}, which has no module.md under /phases yet`);
     }
     if (!site.url) warn("sitemap.xml", "no absolute base URL (SITE_URL / VERCEL_URL unset) — sitemap.xml and canonical links skipped");
     const out = path.join(dir.output, "build-warnings.json");
