@@ -1,3 +1,25 @@
+---
+phase: "phase-3"
+moduleId: "3.5"
+title: "Ansible: configuration management for the hosts you can't containerise away"
+goal: "Configure two EC2 hosts to run the `aws-devops-platform` container under systemd from one idempotent Ansible playbook with a dynamic AWS inventory, roll a config change across them one at a time, and find and undo a manual change on one host."
+timeEstimate: "5-6h"
+costEstimate: "<$0.25"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $0.78/day"
+lastVerified: null
+prerequisites: ["0.6", "2.9", "3.1"]
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "ansible-core": "2.21.6"
+  "ansible-lint": "26.11.0"
+  "amazon.aws": "12.1.0"
+  "boto3": "1.44.4"
+  "terraform": "1.17.2"
+  "aws-provider": "6.73.0"
+  "awscli": "2.33.14"
+---
+
 # Phase 3 · Module 3.5 — Ansible: configuration management for the hosts you can't containerise away
 
 ## 1. Goal
@@ -6,7 +28,7 @@ Configure two EC2 hosts to run the `aws-devops-platform` container under systemd
 
 ## 2. Prerequisites
 
-- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)); an image `sha-…` exists in ECR `aws-devops-platform`.
+- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate-module-06) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)); an image `sha-…` exists in ECR `aws-devops-platform`.
 - **Modules:** [3.1 Multi-environment Terraform](../01-multi-env-terraform/module.md) (reads the dev image tag from `release.auto.tfvars`).
 - **You must already be able to:** SSH to an EC2 instance with a key pair and a security group limited to your IP (Phase 0 module 0.5); write and apply Terraform (Phase 2).
 - **Tools:** Python 3.12 venv, Terraform 1.17.2, AWS CLI 2.33.14, an SSH key pair at `~/.ssh/id_ed25519` (create with `ssh-keygen -t ed25519` if needed). Installed in Lab 2: ansible-core **2.21.6**, collection `amazon.aws` **12.1.0**, ansible-lint **26.11.0**.

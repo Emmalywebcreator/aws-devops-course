@@ -1,3 +1,25 @@
+---
+phase: "phase-3"
+moduleId: "3.1"
+title: "Multi-environment Terraform"
+goal: "Run `dev` and `staging` from the same Terraform modules with fully separate state, promote one exact image from dev to staging, and keep `prod` as a reviewed plan \u2014 then prove a change to one environment can't silently hit another."
+timeEstimate: "5-7h"
+costEstimate: "<$0.80"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $2.85/day"
+lastVerified: null
+prerequisites: ["0.6", "2.9"]
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "terraform": "1.17.2"
+  "aws-provider": "6.73.0"
+  "awscli": "2.33.14"
+  "runner": "ubuntu-24.04"
+  "actions/checkout": "v7"
+  "aws-actions/configure-aws-credentials": "v6"
+  "hashicorp/setup-terraform": "v4"
+---
+
 # Phase 3 · Module 3.1 — Multi-environment Terraform
 
 ## 1. Goal
@@ -6,7 +28,7 @@ Run `dev` and `staging` from the same Terraform modules with fully separate stat
 
 ## 2. Prerequisites
 
-- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (Phase 2 gate passed; your repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)).
+- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate-module-06) passed **and Phase 2 complete** (Phase 2 gate passed; your repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)).
 - **You must already be able to:** `terraform init/plan/apply/destroy` the `dev` env, read a plan, and use the remote S3 state backend (Phase 2).
 - **Tools:** Terraform **1.17.2**, AWS CLI **2.33.14**, Git, a GitHub repo `aws-devops-platform` with the `gha-deploy` OIDC role (Phase 2 contract §2).
 - **Access:** your AWS admin profile; the repo secret `AWS_DEPLOY_ROLE_ARN` set to the `gha-deploy` role ARN (Phase 1).

@@ -1,3 +1,29 @@
+---
+phase: "phase-3"
+moduleId: "3.3"
+title: "Advanced observability: burn-rate alerting, error budgets and tracing"
+goal: "Page a human only when the orders API is burning its error budget fast enough to matter, block releases when the budget is spent, and follow one failing request end to end with a distributed trace."
+timeEstimate: "6-8h"
+costEstimate: "<$0.60"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $1.68/day"
+lastVerified: null
+prerequisites: ["0.6", "2.9", "3.1"]
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "terraform": "1.17.2"
+  "aws-provider": "6.73.0"
+  "awscli": "2.33.14"
+  "python": "3.12.16"
+  "boto3": "1.44.4"
+  "opentelemetry-sdk": "1.45.2"
+  "opentelemetry-exporter-otlp": "1.45.2"
+  "opentelemetry-instrumentation-fastapi": "0.66b2"
+  "opentelemetry-sdk-extension-aws": "2.1.0"
+  "opentelemetry-propagator-aws-xray": "1.0.2"
+  "aws-otel-collector": "v0.51.0"
+---
+
 # Phase 3 · Module 3.3 — Advanced observability: burn-rate alerting, error budgets and tracing
 
 ## 1. Goal
@@ -6,7 +32,7 @@ Page a human only when the orders API is burning its error budget fast enough to
 
 ## 2. Prerequisites
 
-- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)). Phase 2 already taught you: structured logs, ALB metrics, defining an SLI/SLO, threshold alarms, dashboards and an incident drill. This module does **not** repeat them.
+- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate-module-06) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)). Phase 2 already taught you: structured logs, ALB metrics, defining an SLI/SLO, threshold alarms, dashboards and an incident drill. This module does **not** repeat them.
 - **Modules:** [3.1 Multi-environment Terraform](../01-multi-env-terraform/module.md).
 - **Tools:** Terraform 1.17.2, AWS CLI 2.33.14, Python 3.12 venv, Docker.
 - **Access:** admin profile; the `orders-dev-alerts` SNS email subscription confirmed (Phase 2 monitoring module).

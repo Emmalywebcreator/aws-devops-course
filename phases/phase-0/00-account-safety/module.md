@@ -1,3 +1,19 @@
+---
+phase: "phase-0"
+moduleId: "0.0"
+title: "Account safety & billing guardrails"
+goal: "Set up an AWS account that warns you before money surprises you: root locked with MFA, a daily-use admin identity, a billing alarm, a budget and anomaly alerts \u2014 and prove it by finding and killing a forgotten server."
+timeEstimate: "3-4h"
+costEstimate: "<$0.10"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $0.39/day"
+lastVerified: null
+prerequisites: []
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "awscli": "2.33.14"
+---
+
 # Phase 0 · Module 0.0 — Account safety & billing guardrails
 
 ## 1. Goal

@@ -1,3 +1,22 @@
+---
+phase: "phase-3"
+moduleId: "3.4"
+title: "Kubernetes on EKS: re-deploy the same app"
+goal: "Run the same `aws-devops-platform` image you ship to ECS on an EKS cluster \u2014 declare it, roll it forward and back, expose it to the internet \u2014 and tear the cluster down without leaving a load balancer, NAT Gateway or disk behind."
+timeEstimate: "5-7h"
+costEstimate: "<$1.60"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $5.60/day"
+lastVerified: null
+prerequisites: ["0.6", "2.9", "3.1"]
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "eks-kubernetes": "1.36"
+  "kubectl": "v1.36.6"
+  "eksctl": "v0.231.0"
+  "awscli": "2.33.14"
+---
+
 # Phase 3 · Module 3.4 — Kubernetes on EKS: re-deploy the same app
 
 ## 1. Goal
@@ -6,7 +25,7 @@ Run the same `aws-devops-platform` image you ship to ECS on an EKS cluster — d
 
 ## 2. Prerequisites
 
-- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)). You need an image in ECR `aws-devops-platform` tagged `sha-…` (contract §2–3).
+- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate-module-06) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)). You need an image in ECR `aws-devops-platform` tagged `sha-…` (contract §2–3).
 - **Modules:** [3.1 Multi-environment Terraform](../01-multi-env-terraform/module.md) (for `release.auto.tfvars` — this module reads the dev image tag from it).
 - **You must already understand:** ECS task vs service, target health checks, rolling deploys (Phase 2), VPC public subnets and why NAT Gateways cost money (Phase 0 module 0.5).
 - **Tools:** AWS CLI 2.33.14; installed in Lab 1: kubectl **v1.36.6**, eksctl **v0.231.0**.

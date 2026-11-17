@@ -1,3 +1,33 @@
+---
+phase: "phase-3"
+moduleId: "3.2"
+title: "DevSecOps: scanning, secrets and policy-as-code"
+goal: "Make the `aws-devops-platform` pipeline refuse leaked secrets, vulnerable dependencies and images, and unsafe infrastructure \u2014 then move the app's API key into AWS Secrets Manager and recover from a real secrets outage."
+timeEstimate: "6-8h"
+costEstimate: "<$0.25"
+costAssumptions: "us-east-1, on-demand, no free tier assumed, author's unit prices as of 2026-11-17 (not yet checked against AWS pricing pages); if you skip teardown \u2248 $1.33/day"
+lastVerified: null
+prerequisites: ["0.6", "2.9", "3.1"]
+hasDebuggingLab: true
+hasTeardown: true
+toolsPinned:
+  "gitleaks": "8.30.1"
+  "pip-audit": "2.10.1"
+  "bandit": "1.9.4"
+  "trivy": "0.76.2"
+  "checkov": "3.4.5"
+  "conftest": "0.71.1"
+  "terraform": "1.17.2"
+  "aws-provider": "6.73.0"
+  "awscli": "2.33.14"
+  "python": "3.12.16"
+  "runner": "ubuntu-24.04"
+  "actions/checkout": "v7"
+  "aws-actions/configure-aws-credentials": "v6"
+  "hashicorp/setup-terraform": "v4"
+  "actions/setup-python": "v7"
+---
+
 # Phase 3 · Module 3.2 — DevSecOps: scanning, secrets and policy-as-code
 
 ## 1. Goal
@@ -6,7 +36,7 @@ Make the `aws-devops-platform` pipeline refuse leaked secrets, vulnerable depend
 
 ## 2. Prerequisites
 
-- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)).
+- **Gates:** [Phase 0 exit gate](../../../assessments/gate-rules.md#part-2-the-phase-0-exit-gate-module-06) passed **and Phase 2 complete** (repo matches [the Phase 2 exit contract](../../phase-2/CONTRACT.md)).
 - **Modules:** [3.1 Multi-environment Terraform](../01-multi-env-terraform/module.md) (this module uses `infra/envs/dev` and the `terraform.yml` matrix).
 - **Tools:** Python 3.12 venv (Phase 1), Docker (Phase 1), Terraform 1.17.2, AWS CLI 2.33.14.
 - **Access:** admin profile; repo secret `AWS_DEPLOY_ROLE_ARN`.
