@@ -67,6 +67,59 @@ DoD columns: **T** full template · **H** every command run by a human · **C** 
 
 *Phase 0 rows below 0.0 and the Phase 1–2 rows are superseded by the spec (0.1–0.6) and MAPPING.md; they'll be replaced as each module is started. \*0.0 QA: review findings applied 2026-11-17; Last-verified still pending a human run. "V" = Last-verified block present (not yet verified). Phase 3 modules: Q (qa agent) not yet run.*
 
+## Fix list — course-wide qa + cost review (2026-11-17)
+
+Source: `qa` (part A: assessments + Phase 0; part B: Phase 3 + contract) and `cost` agents, run 2026-11-17 on commit `ca5e60f`. Priority: **P1** = wrong, unsafe, leaves money running or blocks a learner · **P2** = CLAUDE.md rule violation · **P3** = polish. Each fix group = one commit.
+
+### P1
+
+| # | Where | Problem | Fix | Commit |
+|---|---|---|---|---|
+| 1 | `assessments/*`, `solutions/assessments/*` | T3/G1/E1 require Identity Center (`AWSReservedSSO_`) + `aws sso login`; Module 0.0 teaches IAM user + `aws login` → every 0.0 graduate fails | Accept `:user/<name>` via `aws login`; fail only on `:root` / root keys | A |
+| 2 | `assessments/*` | Routing uses P0-M01…M09; account safety placed last; spec skip rule (≥ 10/12 + all tasks → Phase 1) missing | Renumber to 0.0–0.6; Q11/Q12/T3 → 0.0; add spec rule; lowest failed module otherwise | A |
+| 3 | `assessments/*` | Forward refs to Docker (Q10, G6, E6 — Docker is Phase 1.2 per M-6); "workstation" module doesn't exist; no item tests 0.5 | Drop Docker items; Step 0/Q1 → 0.1; replace Q10 with an IAM-evaluation item for 0.5 | A |
+| 4 | `assessments/gate-rules.md` | Exit gate doesn't match spec 0.6 (capstone = VPC + EC2 + SG + S3; explanations = IAM evaluation, VPC request path, NAT cost; debugging labs 0.1–0.5) | Rewrite Part 2 to the spec; teardown checks cover EC2, VPC, S3, EIP, NAT, volumes | A |
+| 5 | `phase-2/CONTRACT.md` | Deployment controller unspecified; if CodeDeploy, `update-service --task-definition` and TF task-def changes in 3.2/3.3 break | Contract: deployment controller `ECS` (ECS-native blue/green, closes D11) | C |
+| 6 | `phase-2/CONTRACT.md` §6 | Daily figure wrong (1.45) and has no assumptions | List unit prices/region/date; USD 0.058/h → ≈ USD 1.20–1.39/day | C |
+| 7 | `3.2` teardown | Secret force-deleted while service references it; merged `secrets.tf` recreates an empty secret in 3.3 (bills, tasks fail) | Teardown env first, then secret; secret behind `enable_api_key_secret` (default false); 3.3 confirm checks secrets | E, F |
+| 8 | `3.2` Lab 2 | `bandit -ll` won't report B602 for a string literal (LOW severity) | Use a non-literal shell command (HIGH) | E |
+| 9 | `3.3` Lab 3 | Error-budget gate passes silently (unset var → `allowed == 0` → exit 0); referenced deploy job doesn't exist | Exit 2 on no data; set variable via `gh variable set`; write the job | F |
+| 10 | `3.4` | `kubectl apply -f k8s/` hits eksctl `cluster.yaml` and literal `IMAGE_URI` | Move cluster config to `infra/eks/cluster.yaml`; fix via sed pipeline | G |
+| 11 | `3.4` teardown | LB wait loop gives up and deletes the cluster anyway → orphaned CLB ≈ USD 0.84/day; no LB check in confirm; empty `$VPC_ID` | Hard-stop if LB remains; LB check in confirm; guard `$VPC_ID` | G |
+| 12 | `3.5` Lab 1 | `output "ami_id"` from sensitive `aws_ssm_parameter.value` fails at plan | `var.ami_id` pinned to a recorded ID; lookup via `insecure_value` only to discover it | H |
+
+### P2
+
+| # | Where | Problem | Fix | Commit |
+|---|---|---|---|---|
+| 13 | `gate-rules.md` | 1.6 duplicates 0.0 Labs 2/5; "check 1" should be "check 2"; Identity Center wording | Link to 0.0; correct wording | A |
+| 14 | 0.0 | Free tier is "10 alarm **metrics**", not 10 alarms | Reword (0.0 cost table + Lab 4 note) | B |
+| 15 | 0.0 | CloudShell CLI version unpinned (`aws login` needs ≥ 2.32.0) | Learner records `aws --version` in CloudShell; must be ≥ 2.32.0 | B |
+| 16 | CONTRACT | Bootstrap cost lacks region/date/ECR size; no lifecycle on state-bucket noncurrent versions; `gha-deploy` trust/state access for PR plans unstated; dev has no `image_tag` output | State all four in contract | C |
+| 17 | CONTRACT + 3.1/3.2/3.3 tables | Monitoring dashboard (USD 3/month beyond 3 free), 2 alarms/env, CloudWatch Logs ingestion not costed | Add rows / state free-tier assumption; 3.1 skip ≈ USD 2.85/day | C–F |
+| 18 | 3.1 | `|| echo REPLACE_ME` fallback; `sed s/dev/ENV/` corrupts `aws-devops-platform`; `$STATE_BUCKET` unset in new terminal | Use contract `image_tag` output; quote-anchored sed; re-derive bucket | D |
+| 19 | 3.2 | `requests==2.19.1` conflicts with FastAPI's `idna` → resolve error not CVE; checkov pins boto3 → shared venv conflict; `python-version: "3.12"` floats; Rego misses `ip_protocol = "-1"`; Trivy CVE uncited | `pip-audit --no-deps` on a one-line file; separate security venv; pin `3.12.12`*; Rego rule for all-protocol; cite OSV | E |
+| 20 | 3.3 | `pip install` without `setup-python`; dev left at 512/1024 after merge; re-teaches SLI/error-budget basics from 2.7 | Add setup step; revert sizes; link to 2.7, keep only burn-rate material | F |
+| 21 | 3.4 | AZs not pinned (IP/cost count); volume/instance confirm filters miss node volumes; stack filter misses states; NAT row has no price | `availabilityZones`; filter `tag:eks:cluster-name`; exclude `DELETE_COMPLETE`; NAT ≈ USD 0.045/h | G |
+| 22 | 3.5 | AMI floats via `ami-amazon-linux-latest`; default tags don't reach root volumes (confirm can't detect leftovers) | Pinned `var.ami_id`; `volume_tags`; confirm checks `status=available` | H |
+| 23 | All Phase 3 cost sections | No pricing date | "author's figures as of 2026-11-17, not yet checked" | D–H |
+| 24 | MAPPING / PROGRESS | "0.5 now teaches" (not written); approval question still open; diagnostic marked "no forward refs"; superseded Phase 0 rows | "will teach (planned)"; remove question; correct rows | I |
+| 25 | All modules | Unit prices not checked live; Last verified = NOT YET VERIFIED | **Needs a human run + live pricing check — not fixable in this pass** | — |
+
+### P3
+
+| # | Where | Fix | Commit |
+|---|---|---|---|
+| 26 | 0.0 | Drop resolved `TODO(verify)` on `delete-alarms` (DeleteAlarms docs); section 9 references section 7 teardown instead of repeating it | B |
+| 27 | solutions key | Remove open "qa: confirm" note | A |
+| 28 | 3.2 / 3.3 / 3.4 / 3.5 | Resolve answered `TODO(verify)`s (gitleaks prints `8.30.1`; requests 2.19.1 has CVEs; secret deletion is async → retry; `data.aws_region.current.region` correct; ADOT default config routes traces to X-Ray as `orders-api`; EKS default CLB confirmed; group `role_orders_host`; ansible-core 2.21 targets Python 3.9–3.14) | E–H |
+| 29 | 3.4 | Stack-status and instance filters (see 21) | G |
+| 30 | 3.5 | Drop unused `community.docker`; `mkdir -p ansible/inventory` | H |
+
+\* exact patch chosen to match the Phase 1 Docker base image once 1.2 is written; until then the contract states it.
+
+**Commit plan:** A assessments · B Module 0.0 · C Phase 2 contract · D 3.1 · E 3.2 · F 3.3 · G 3.4 · H 3.5 · I MAPPING/PROGRESS.
+
 ## Backlog from AUDIT.md
 
 ### P1 — Learner level and hard blockers (AUDIT §5 🔴)
