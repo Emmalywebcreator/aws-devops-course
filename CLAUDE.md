@@ -29,6 +29,16 @@ A module may reference earlier modules but NEVER later ones.
 9. **Teardown** — exact commands, and confirmation step
 10. **Last verified** — date + tool/AWS versions tested
 
+## Front-matter contract
+- Every `module.md` MUST start with the YAML front-matter defined in
+  `/templates/module-frontmatter.md` (12 keys, no others without agreement).
+  Filled example: `/templates/module-frontmatter.example.md`.
+- The site reads phase, ID, title, goal, time, cost, last-verified, prerequisites,
+  debugging-lab, teardown and tool pins from front-matter ONLY. It must never parse
+  module prose for these values.
+- Missing or malformed required keys = build warning (never silent, never a crash).
+- Front-matter must agree with the module's prose sections; a mismatch is a qa failure.
+
 ## Non-negotiable technical rules
 - Pin every version: Terraform provider versions, Docker image tags (never `:latest`),
   GitHub Action versions (`@v4`, not `@main`), Python deps.
