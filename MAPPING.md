@@ -19,7 +19,7 @@ Phase 0 scope follows the 0.0–0.6 spec.
 | M-4 | Approval gates (Month 3) | **Keep in Phase 2** as a manual approval before blue/green traffic shift in the single env. Prod-environment approvals → Phase 3. | Approval-before-shift is part of safe releases. Environment promotion is multi-env. |
 | M-5 | HTTPS + custom domain (Month 2 Week 3) | **Phase 2, optional track.** The default path is HTTP on the ALB DNS name, with no domain purchase. | Resolves AUDIT B16 / D5. A domain is a money and card blocker. |
 | M-6 | Docker install (legacy Lesson 0.6) | **Phase 1, module 1.2** | It isn't in the Phase 0 spec, and Phase 1 is the first place Docker is used. |
-| M-7 | AWS fundamentals duplicated in Month 1 §1.1–1.2 (IAM, VPC, regions) | **Strip from Phase 1–2.** Link back to Phase 0 module 0.5. | Phase 0.5 now teaches IAM evaluation, VPC and CLI. |
+| M-7 | AWS fundamentals duplicated in Month 1 §1.1–1.2 (IAM, VPC, regions) | **Strip from Phase 1–2.** Link back to Phase 0 module 0.5. | Phase 0.5 will teach IAM evaluation, VPC and CLI (planned — not yet written). |
 | M-8 | Phase gates | New **1.6** and **2.9** gate modules, each with teardown verification + written explanations, mirroring the 0.6 gate | CLAUDE.md requires hard gates between phases. The legacy course has none. |
 
 ## Week-by-week mapping
@@ -72,9 +72,10 @@ Legend: **→** where it goes · ⤴ moved to Phase 3 (to be logged in PROGRESS.
 
 **Repo continuity:** every module extends the same `aws-devops-platform` repo that 1.1 creates. Nothing forks into a separate project. Module 2.1 is the only exception: its by-hand ECS resources are created with the CLI and destroyed in the same session, so it adds nothing to the repo.
 
-## Open questions before rewriting
+## Open questions
 
-1. **Approve M-1 … M-8**, especially M-1 (no ECS in Phase 1) and M-5 (no domain needed by default).
-2. **WSL/workstation setup:** the Phase 0 spec has no home for legacy Lesson 0.1. Add it to 0.1 "Linux & the shell", or make it a 0.1 prerequisite page?
-3. **Phase 0.5 vs Phase 2.1 overlap:** 0.5 already launches EC2 in a hand-built VPC. 2.1 reuses that VPC knowledge and adds only ECS/ALB. Confirm 2.1 should not rebuild a VPC by hand.
-4. **Blue/green mechanism:** the legacy course teaches CodeDeploy. Keep it, or switch 2.6 to ECS-native blue/green? Needs a doc check either way (AUDIT §6).
+*(M-1 … M-8 approved 2026-11-17.)*
+
+1. **WSL/workstation setup:** the Phase 0 spec has no home for legacy Lesson 0.1. Add it to 0.1 "Linux & the shell", or make it a 0.1 prerequisite page?
+2. **Phase 0.5 vs Phase 2.1 overlap:** 0.5 will launch EC2 in a hand-built VPC (planned). 2.1 reuses that VPC knowledge and adds only ECS/ALB. Confirm 2.1 should not rebuild a VPC by hand.
+3. ~~Blue/green mechanism~~ — **decided 2026-11-17: ECS-native blue/green** (Phase 2 contract §4: deployment controller `ECS`; Phase 3 depends on it). Cite the AWS doc when 2.6 is written (AUDIT §6).

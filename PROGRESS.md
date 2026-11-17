@@ -7,7 +7,7 @@ Source of truth for module rules: [CLAUDE.md](CLAUDE.md) · template: [templates
 
 - **Stage:** Phase 0 diagnostic + gate drafted; Module 0.0 drafted and reviewed (labs/cost/qa fixes applied); Stage 4 mapping approved (MAPPING.md); Phase 2 exit contract + Phase 3 modules 3.1–3.5 drafted. Nothing run against AWS yet.
 - **Legacy content:** `index.html` (Module 0 + Months 1–6) remains published and unchanged.
-- **Exact next step:** human run of Module 0.0; rework `/assessments/` to the 0.0–0.6 numbering and the spec's skip rule (≥ 10 + all tasks → Phase 1); write Phase 0 modules 0.1–0.6; then Phase 1 module 1.1.
+- **Exact next step:** human run of Module 0.0 (and live pricing check, fix list #25); decide D10 (WSL); write Phase 0 modules 0.1–0.6; then Phase 1 module 1.1.
 
 ## Scaffolding
 
@@ -32,7 +32,7 @@ Source of truth for module rules: [CLAUDE.md](CLAUDE.md) · template: [templates
 | D8 | Course length | README "28-week" vs phase-gated structure | open |
 | D9 | Phase 3 written before Phase 2 | Phase 3 targets `phases/phase-2/CONTRACT.md`; Phase 2 rewrite must satisfy it or update both together | **decided 2026-11-17** |
 | D10 | Workstation/WSL setup | Not in the Phase 0 spec (legacy Lesson 0.1) — fold into 0.1 or make a prerequisite page? | open |
-| D11 | Blue/green mechanism (2.6) | Keep CodeDeploy or switch to ECS-native | open |
+| D11 | Blue/green mechanism (2.6) | ECS-native blue/green; deployment controller `ECS` (Phase 2 contract §4) | **decided 2026-11-17** |
 
 ## Module status
 
@@ -41,31 +41,38 @@ DoD columns: **T** full template · **H** every command run by a human · **C** 
 
 | Phase | Module | Legacy source | Status | T | H | C | D | V | F | Q | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 0 | Phase 0 diagnostic gate (`/assessments/phase-0-entry.md`, `gate-rules.md`; keys in `/solutions/assessments/`) | Start-page self-assessment (self-reported only) | 🟨 | n/a | | ✅ | n/a | ✅ | ✅ | | ✅ |
+| 0 | Phase 0 diagnostic + gate rules (`/assessments/`; keys in `/solutions/assessments/`) — 0.0–0.6 spec numbering | Start-page self-assessment (self-reported only) | 🟨 | n/a | | ✅ | n/a | ✅ | ✅ | ✅ (qa A, fixed in fa25779) | ✅ |
 | 0 | 0.0 Account safety & billing guardrails (`phases/phase-0/00-account-safety`) | M0 Lesson 0.7 + new (AUDIT B2) | 🟦 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-| 0 | Workstation setup (WSL + macOS/Linux) | M0 Lesson 0.1 | ⬜ | | | | | | | | |
-| 0 | Linux CLI, permissions, bash | M0 Lessons 0.2, 0.2b | ⬜ | | | | | | | | |
-| 0 | Networking + troubleshooting (incl. CIDR/subnets) | M0 Lessons 0.3, 0.3b | ⬜ | | | | | | | | |
-| 0 | Git and GitHub | M0 Lesson 0.4 | ⬜ | | | | | | | | |
-| 0 | Python for DevOps | M0 Lesson 0.5 | ⬜ | | | | | | | | |
-| 0 | Docker install | M0 Lesson 0.6 | ⬜ | | | | | | | | |
-| 0 | AWS account safety: IAM basics, Identity Center, SSO login, budgets | M0 Lesson 0.7 | ⬜ | | | | | | | | |
-| 1 | App + container + Compose | Month 1 Weeks 1–2 | ⬜ | | | | | | | | |
-| 1 | AWS core (ECR/ECS/ALB) + IAM | Month 1 Week 3 | ⬜ | | | | | | | | |
-| 1 | CI/CD with GitHub Actions + OIDC | Month 1 Week 4 | ⬜ | | | | | | | | |
-| 1 | Failure, rollback, teardown | Month 1 Weeks 5–6 | ⬜ | | | | | | | | |
-| 1 | IaC intro (new) | — none (AUDIT §2) | ⬜ | | | | | | | | |
-| 2 | Terraform | Month 2 | ⬜ | | | | | | | | |
-| 2 | Safe releases (blue/green + rollback) | Month 3 | ⬜ | | | | | | | | |
-| 2 | Observability | Month 4 | ⬜ | | | | | | | | |
-| 3 | 3.1 Multi-env Terraform (`phases/phase-3/01-multi-env-terraform`) | Month 2 W2–W3 (part) | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| 3 | 3.2 DevSecOps (`02-devsecops`) | Month 5 | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| 3 | 3.3 Advanced observability / SLOs (`03-observability-slos`) | Month 4 (advanced parts) + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| 3 | 3.4 Kubernetes/EKS (`04-kubernetes-eks`) | Month 6 note only + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| 3 | 3.5 Ansible (`05-ansible`) | — new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | | ✅ |
+| 0 | 0.1 Linux & the shell | M0 Lessons 0.2, 0.2b (+ 0.1 WSL, see D10) | ⬜ | | | | | | | | |
+| 0 | 0.2 Networking fundamentals | M0 Lessons 0.3, 0.3b | ⬜ | | | | | | | | |
+| 0 | 0.3 Git & GitHub workflows | M0 Lesson 0.4 | ⬜ | | | | | | | | |
+| 0 | 0.4 Python for ops | M0 Lesson 0.5 | ⬜ | | | | | | | | |
+| 0 | 0.5 AWS core mental model + CLI | new (AUDIT B11, B13) | ⬜ | | | | | | | | |
+| 0 | 0.6 Capstone mini-project + Phase 0 gate | new (must meet gate-rules.md Gate C contract) | ⬜ | | | | | | | | |
+| 1 | 1.1 The app: build and test locally | M1 W1 | ⬜ | | | | | | | | |
+| 1 | 1.2 Containers: Docker install, Dockerfile, Compose | M0 L0.6 + M1 W2 | ⬜ | | | | | | | | |
+| 1 | 1.3 CI with GitHub Actions | M1 W4 (CI half) | ⬜ | | | | | | | | |
+| 1 | 1.4 IaC intro (Terraform, local state) | M2 W1 concepts + new | ⬜ | | | | | | | | |
+| 1 | 1.5 CI publishes to ECR via OIDC | M1 W3 (ECR) + W4 (OIDC) | ⬜ | | | | | | | | |
+| 1 | 1.6 Phase 1 gate | M1 W6 + new | ⬜ | | | | | | | | |
+| 2 | 2.1 ECS on Fargate by hand | M1 W3 | ⬜ | | | | | | | | |
+| 2 | 2.2 Terraform for real: remote state, modules, network + ECS | M2 W1–W2, W4 | ⬜ | | | | | | | | |
+| 2 | 2.3 Continuous deployment + rollback basics | M1 W4 (CD) + W5 | ⬜ | | | | | | | | |
+| 2 | 2.4 Terraform in CI + drift (HTTPS optional) | M2 W3 | ⬜ | | | | | | | | |
+| 2 | 2.5 Safe releases I: versioned, immutable artifacts | M3 W1–W2 | ⬜ | | | | | | | | |
+| 2 | 2.6 Safe releases II: ECS-native blue/green, approval, rollback | M3 W3–W4 | ⬜ | | | | | | | | |
+| 2 | 2.7 Observability I: logs, metrics, SLOs | M4 W1–W2 | ⬜ | | | | | | | | |
+| 2 | 2.8 Observability II: alarms, dashboards, incident drill | M4 W3–W4 | ⬜ | | | | | | | | |
+| 2 | 2.9 Phase 2 gate | M2 W4 + M6 W2 + new | ⬜ | | | | | | | | |
+| 2 | Phase 2 exit contract (`phases/phase-2/CONTRACT.md`) | derived from MAPPING | 🟨 | n/a | | ✅ | n/a | n/a | ✅ | ✅ (qa B, fixed in 53ddbe7) | n/a |
+| 3 | 3.1 Multi-env Terraform (`phases/phase-3/01-multi-env-terraform`) | Month 2 W2–W3 (part) | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 3 | 3.2 DevSecOps (`02-devsecops`) | Month 5 | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 3 | 3.3 Advanced observability / SLOs (`03-observability-slos`) | Month 4 (advanced parts) + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 3 | 3.4 Kubernetes/EKS (`04-kubernetes-eks`) | Month 6 note only + new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 3 | 3.5 Ansible (`05-ansible`) | — new | 🟨 | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 3 | Capstone | Month 6 | ⬜ | | | | | | | | |
 
-*Phase 0 rows below 0.0 and the Phase 1–2 rows are superseded by the spec (0.1–0.6) and MAPPING.md; they'll be replaced as each module is started. \*0.0 QA: review findings applied 2026-11-17; Last-verified still pending a human run. "V" = Last-verified block present (not yet verified). Phase 3 modules: Q (qa agent) not yet run.*
+*Rows follow the Phase 0 spec (0.0–0.6) and MAPPING.md. \*0.0 QA: review findings applied 2026-11-17; Last-verified still pending a human run. "V" = Last-verified block present (not yet verified). Phase 3 modules: qa + cost agents run 2026-11-17, findings fixed (see Fix list).*
 
 ## Fix list — course-wide qa + cost review (2026-11-17)
 
@@ -119,6 +126,8 @@ Source: `qa` (part A: assessments + Phase 0; part B: Phase 3 + contract) and `co
 \* exact patch chosen to match the Phase 1 Docker base image once 1.2 is written; until then the contract states it.
 
 **Commit plan:** A assessments · B Module 0.0 · C Phase 2 contract · D 3.1 · E 3.2 · F 3.3 · G 3.4 · H 3.5 · I MAPPING/PROGRESS.
+
+**Status (2026-11-17):** A `fa25779` · B `d9a6e80` · C `53ddbe7` · D `c453419` · E `956788f` · F `86aa1df` · G `169416b` · H `63d297f` · I (this commit) — all items done **except #25** (live pricing check + human run of every module), which stays open. Remaining `TODO(verify)`: 3.3 time-to-alarm; assessments `DescribeAlarms` pricing.
 
 ## Backlog from AUDIT.md
 
@@ -188,3 +197,4 @@ Network drill (M1 §1.5), 0.3b error table, M5 fail-a-gate demos, M3 failure inj
 | 2026-11-17 | CLAUDE.md saved; AUDIT.md written; template, dirs, subagents, PROGRESS.md created | Files exist; no content written | Decide D1 |
 | 2026-11-17 | Phase 0 entry diagnostic (12 Q + 3 tasks), gate rules (placement + exit gate), answer keys in `/solutions/assessments/`. Proposed P0-M01…M09 numbering (feeds D1). | T1 + T2 local steps dry-run on WSL 2; AWS CLI flags checked via `aws help`; no real-account run | Human run of diagnostic; qa pass on citations; confirm module order in D1 |
 | 2026-11-17 | Module 0.0 written + labs/cost/qa reviews applied; MAPPING.md (Stage 4) approved; Phase 2 exit contract; Phase 3 modules 3.1–3.5 with incident labs + solutions | bash -n on all scripts; CLI flags via `aws help`; tool versions from registries; scanner binaries NOT run (download blocked) | Human run of 0.0; assessment renumbering; qa/labs/cost agents on Phase 3 |
+| 2026-11-17 | Course-wide qa (×2) + cost review; prioritized fix list; fixes A–I committed module by module | All bash blocks `bash -n`; versions from registries; no AWS calls | Fix list #25 (human run + live prices) |
