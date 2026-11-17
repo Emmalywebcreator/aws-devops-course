@@ -3,7 +3,7 @@
 ## What this repo is
 A phased, project-based DevOps course. Learners build one app (`aws-devops-platform`)
 across four phases, from zero AWS knowledge to a deployable, observable, secured system.
-Deployed at https://emmalywebcreator.github.io/aws_devops_course/
+Deployed on Vercel from this repo (static Eleventy build: `npm run build` → `_site/`). Base URL comes from env (`SITE_URL` / Vercel system vars), never hardcoded.
 
 ## Target learner
 Phase 0–1: career-switcher or junior dev with basic IT literacy, NO AWS experience.
@@ -28,6 +28,16 @@ A module may reference earlier modules but NEVER later ones.
 8. **Self-check** — 5–8 questions or commands that prove mastery
 9. **Teardown** — exact commands, and confirmation step
 10. **Last verified** — date + tool/AWS versions tested
+
+## Front-matter contract
+- Every `module.md` MUST start with the YAML front-matter defined in
+  `/templates/module-frontmatter.md` (12 keys, no others without agreement).
+  Filled example: `/templates/module-frontmatter.example.md`.
+- The site reads phase, ID, title, goal, time, cost, last-verified, prerequisites,
+  debugging-lab, teardown and tool pins from front-matter ONLY. It must never parse
+  module prose for these values.
+- Missing or malformed required keys = build warning (never silent, never a crash).
+- Front-matter must agree with the module's prose sections; a mismatch is a qa failure.
 
 ## Non-negotiable technical rules
 - Pin every version: Terraform provider versions, Docker image tags (never `:latest`),
@@ -57,7 +67,7 @@ A module may reference earlier modules but NEVER later ones.
 - `/phases/phase-0/…/module.md` — lesson content
 - `/phases/phase-0/…/labs/` — runnable labs, one dir per lab
 - `/phases/phase-0/…/solutions/` — reference solutions, not linked from lesson nav
-- `/site/` — the published site (GitHub Pages)
+- `/site/` — the site's layouts, assets and build scripts (Eleventy; config in `/eleventy.config.js`). It renders `/phases`, `/assessments`, `/solutions` — never copies them
 - Diagnostics and gates live in `/assessments/`
 
 ## Subagents (use these, not one mega-prompt)

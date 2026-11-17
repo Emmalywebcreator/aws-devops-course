@@ -1,17 +1,17 @@
 # AWS DevOps Engineering Course
 
-A self-contained static website (one `index.html`, no build step) for the 28-week AWS DevOps course.
+Static site for the phased aws-devops-platform course, built with Eleventy from `/phases`, `/assessments` and `/solutions`. The original single-page course (`index.html`) is still served at `/legacy/`.
 
 ## Deploy on Vercel
 
 1. Push this folder to a GitHub repository (or run `deploy.ps1`).
 2. In Vercel: **Add New → Project → Import** the repository.
-3. Framework preset: **Other**. Leave the build command and output directory empty.
+3. Framework preset: **Other**. Build settings come from `vercel.json` (`npm run build`, output `_site`). Optional env var: `SITE_URL` (production base URL; previews use `VERCEL_URL` automatically).
 4. Deploy. Every later `git push` to `main` redeploys automatically.
 
 ## Updating the course
 
-Replace `index.html` with a newly built version, commit and push.
+Edit module content under `/phases` (with front-matter per `/templates/module-frontmatter.md`), commit and push. Run `npm ci && npm run build` locally to see build warnings.
 
 ## Notes
 

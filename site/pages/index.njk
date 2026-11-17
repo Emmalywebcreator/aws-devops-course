@@ -1,0 +1,25 @@
+---
+permalink: /
+title: Home
+---
+<h1>{{ site.title }}</h1>
+<p>Build one app, <code>aws-devops-platform</code>, from zero AWS knowledge to a deployable, observable, secured system — in four gated phases.</p>
+
+<div id="your-path" class="callout callout-cost" hidden></div>
+
+<p><a class="cta" href="{{ diagnostic.entryUrl }}">Start here: take the entry diagnostic</a></p>
+<p>The diagnostic tells you whether to skip Phase 0, and otherwise the <strong>one</strong> module to start at. Your result and progress are saved only in this browser — there are no accounts.</p>
+
+{% for p in phases %}
+  {% set mods = collections.modules | navModules(p.phase) %}
+  <h2>{{ p.label }}</h2>
+  {% if mods.length %}
+    <ul>
+    {% for m in mods %}
+      <li><a href="{{ m.url }}">{{ m.id }} {{ m.title }}</a> — {{ m.goal }} <span class="small muted">({{ m.timeEstimate }}, {{ m.costEstimate }})</span></li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">No published modules yet.</p>
+  {% endif %}
+{% endfor %}

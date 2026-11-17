@@ -1,0 +1,17 @@
+{
+  "name": "aws-devops-course-site",
+  "private": true,
+  "type": "module",
+  "description": "Static site for the aws-devops-platform course. Content lives in /phases, /assessments, /solutions.",
+  "scripts": {
+    "build": "eleventy && node site/scripts/postbuild.mjs",
+    "serve": "eleventy --serve"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "3.1.8",
+    "markdown-it-anchor": "10.1.0"
+  }
+}
