@@ -23,10 +23,12 @@ Page a human only when the orders API is burning its error budget fast enough to
 | Task size raised to 0.5 vCPU / 1 GB for the tracing sidecar (Lab 4) | yes | Fargate ≈ USD 0.04048/vCPU-h + 0.004445/GB-h → +≈ USD 0.012/h | ≤ 4 h | ≤ USD 0.05 |
 | Metric-math alarms (4) | yes, monthly | USD 0.10 per metric per alarm-month; 3 metrics each → USD 1.20/month | ≤ 1 day | ≤ USD 0.04 |
 | Composite alarms (2) | yes, monthly | USD 0.50 per composite alarm-month → USD 1.00/month | ≤ 1 day | ≤ USD 0.04 |
+| CloudWatch Logs ingestion (app logs; DEBUG during the incident; ADOT collector logs) | per GB | USD 0.50/GB ingested (assumption: first 5 GB/month free not counted) | < 50 MB | < USD 0.03 |
+| Secrets Manager | — | **none created**: `enable_api_key_secret` stays `false` (module 3.2) | 0 | USD 0 |
 | X-Ray traces | per trace | first 100,000 traces recorded/month free; then USD 5.00/million | < 10,000 | USD 0 |
 | `GetMetricData` (error-budget script) | per request | USD 0.01 per 1,000 metrics requested | < 500 | < USD 0.01 |
 
-- **Pricing assumptions:** Region `us-east-1`; on-demand; no free tier except the X-Ray allowance stated. **Not re-checked** against https://aws.amazon.com/cloudwatch/pricing/, https://aws.amazon.com/xray/pricing/, https://aws.amazon.com/fargate/pricing/ (checked: not yet).
+- **Pricing assumptions:** Region `us-east-1`; on-demand; no free tier except the X-Ray allowance stated (so alarm metrics are counted even though the CloudWatch free tier covers 10 alarm metrics). Author's figures as of 2026-11-17, **not yet checked** against https://aws.amazon.com/cloudwatch/pricing/, https://aws.amazon.com/xray/pricing/, https://aws.amazon.com/fargate/pricing/.
 - **Total if you follow teardown:** under **USD 0.60**.
 - **If you skip teardown: ≈ USD 1.68/day** (env with sidecar (0.055 + 0.012) × 24 = 1.61 + alarms ≈ 0.07/day).
 
@@ -36,9 +38,10 @@ Page a human only when the orders API is burning its error budget fast enough to
 
 Phase 2's alarm said "page if 5xx > N in 5 minutes". That pages for a 30-second blip at 3 a.m. *and* stays silent for a slow leak of 1% errors all week — which can spend your whole monthly budget. What you actually care about is: **"at this rate, will we break the SLO?"**
 
-### Error budget and burn rate
+### Burn rate (building on Phase 2's SLO)
 
-- **SLO:** 99.5% of requests succeed over 30 days → **error budget** = 0.5% of requests may fail.
+Phase 2 (modules 2.7–2.8) defined the SLI (successful requests ÷ all requests, from ALB metrics), the SLO (99.5% over 30 days) and the error budget (0.5% of requests may fail). This module uses those definitions unchanged and adds one idea:
+
 - **Burn rate** = current error ratio ÷ budget ratio. Error ratio 0.5% → burn 1 (budget lasts exactly 30 days). Error ratio 7.2% → burn 14.4 → **2% of the month's budget gone in 1 hour**.
 - Worked example: 1,000 requests/hour, 72 failing → ratio 0.072 → burn 0.072 / 0.005 = **14.4**.
 
@@ -69,7 +72,7 @@ Sources: https://opentelemetry.io/docs/concepts/signals/traces/ · https://aws-o
 
 > **Region:** `us-east-1`. `export AWS_REGION=us-east-1 AWS_PROFILE=<your-admin-profile>`. Repo branch: `git switch -c phase3/slo`. Bring up dev: `terraform -chdir=infra/envs/dev apply` (image tag from `release.auto.tfvars`, module 3.1).
 
-### Lab 1 — Measure the SLI and burn rate from ALB metrics
+### Lab 1 — Compute the burn rate with metric math
 
 - **Region:** `us-east-1`
 - **Task:** generate traffic, then compute the error ratio with metric math from the CLI.
@@ -268,27 +271,63 @@ res = cw.get_metric_data(MetricDataQueries=[q("req", "RequestCount"), q("t5", "H
 tot = {r["Id"]: sum(r["Values"]) for r in res["MetricDataResults"]}
 req, bad = tot["req"], tot["t5"] + tot["e5"]
 allowed = req * (1 - slo)
-remaining = 1.0 if allowed == 0 else 1 - bad / allowed
+if req == 0:
+    # No data is NOT "budget fine": wrong ALB suffix, rebuilt ALB, or no traffic. Fail loudly.
+    print(f"window={days}d no RequestCount data for {lb} — check the ALB ARN suffix")
+    sys.exit(2)
+allowed = req * (1 - slo)
+remaining = 1 - bad / allowed
 print(f"window={days}d requests={req:.0f} errors={bad:.0f} allowed={allowed:.1f} budget_remaining={remaining:.1%}")
 sys.exit(0 if remaining > 0 else 1)
 ```
 
-Pin `boto3==1.44.4` in `requirements-ops.txt`. Add a step to the job in `deploy.yml` that promotes to staging (module 3.1), **before** the apply:
+Pin `boto3==1.44.4` in `requirements-ops.txt`.
+
+In module 3.1 you promote by opening a PR that changes `infra/envs/staging/release.auto.tfvars`. Gate exactly that PR with `.github/workflows/promotion-gate.yml`:
 
 ```yaml
+name: promotion-gate
+on:
+  pull_request:
+    paths:
+      - "infra/envs/staging/release.auto.tfvars"
+      - "infra/envs/prod/release.auto.tfvars"
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  error-budget:
+    runs-on: ubuntu-24.04
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'budget-override') }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12.16" }
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
       - run: pip install -r requirements-ops.txt
-      - name: Error budget gate
-        if: ${{ !contains(github.event.head_commit.message, '[budget-override]') }}
-        run: python scripts/error_budget.py "${{ vars.DEV_ALB_ARN_SUFFIX }}" 7 0.995
+      - run: python scripts/error_budget.py "${{ vars.DEV_ALB_ARN_SUFFIX }}" 7 0.995
 ```
 
-- **Expected result:** after the Lab 2 drill (20% errors on a few thousand requests), the budget for dev's last 7 days is spent and the script exits `1`.
+Store the dev ALB suffix as a repository variable (re-run this whenever dev's ALB is rebuilt — the suffix changes, and the script then exits `2` instead of silently passing):
+
+```bash
+gh variable set DEV_ALB_ARN_SUFFIX --body "$(terraform -chdir=infra/envs/dev output -raw alb_arn_suffix)"
+```
+
+The `gha-deploy` role needs `cloudwatch:GetMetricData` (read-only) for this job. The `budget-override` PR label is the documented, reviewable way to ship a reliability fix while the budget is spent.
+
+- **Expected result:** after the Lab 2 drill (20% errors on a few thousand requests), the budget for dev's last 7 days is spent and the script exits `1`. With a wrong suffix it exits `2`. A promotion PR shows the `promotion-gate / error-budget` check failing until you add the `budget-override` label.
 - **Verification command:**
 
 ```bash
 pip install boto3==1.44.4
 python scripts/error_budget.py "$(terraform -chdir=infra/envs/dev output -raw alb_arn_suffix)" 1; echo "exit: $?"
 # expect after the drill: budget_remaining=<negative %> and exit: 1
+python scripts/error_budget.py "app/wrong-suffix/0000000000000000" 1; echo "exit: $?"
+# expect: no RequestCount data … and exit: 2
 ```
 
 - **Teardown command:** none (code only).
@@ -349,7 +388,7 @@ def setup_tracing(app):
     command   = ["--config=/etc/ecs/ecs-default-config.yaml"]
     logConfiguration = { logDriver = "awslogs", options = {
       awslogs-group = aws_cloudwatch_log_group.this.name, awslogs-region = data.aws_region.current.region, awslogs-stream-prefix = "adot" } }
-    # (adjust the log group reference to your module's name; add `data "aws_region" "current" {}` if the module lacks it — TODO(verify): attribute is `region` in provider 6.x)
+    # (adjust the log group reference to your module's name; add `data "aws_region" "current" {}` if the module lacks it — in provider 6.x the attribute is `region`; `name` is deprecated)
   }
 ```
 
@@ -368,7 +407,7 @@ aws xray get-trace-summaries --start-time "$(date -u -d '-10 min' +%s)" --end-ti
 # expect: > 0 while ERROR_RATE > 0; 0 when it's 0
 ```
 
-(TODO(verify): service name as X-Ray reports it, and whether `ecs-default-config.yaml` in v0.51.0 still enables the X-Ray exporter by default — see https://aws-otel.github.io/docs/setup/ecs.)
+(The v0.51.0 `ecs-default-config.yaml` sends the OTLP traces pipeline to the `awsxray` exporter, and X-Ray names the segment from `service.name`, so traces appear as `orders-api` — https://aws-otel.github.io/docs/setup/ecs.)
 
 - **Teardown command:** section 9. To keep tracing code but stop paying for the sidecar: `enable_tracing = false`, `cpu = 256`, `memory = 512`, apply.
 - **Cost note:** +≈ USD 0.012/hour for the bigger task; traces within the free 100,000/month.
@@ -432,9 +471,14 @@ aws cloudwatch describe-alarms --alarm-name-prefix orders-dev --alarm-types Metr
 aws resourcegroupstaggingapi get-resources --tag-filters Key=env,Values=dev \
   --query 'ResourceTagMappingList[].ResourceARN' --output text
 # expect: no output
+aws secretsmanager list-secrets --include-planned-deletion \
+  --query "SecretList[?starts_with(Name, 'orders/')].Name" --output text
+# expect: no output (enable_api_key_secret = false — module 3.2)
 ```
 
-X-Ray traces expire on their own (30-day retention) and aren't billed for storage. Merge `phase3/slo` with `enable_tracing = false` as the default.
+X-Ray traces expire on their own (30-day retention) and aren't billed for storage.
+
+Before merging `phase3/slo`, put dev back to the size later modules assume: `enable_tracing = false`, `cpu = 256`, `memory = 512` in `infra/envs/dev/terraform.tfvars`. (Left at 512/1024, every later dev session costs ≈ USD 0.067/h instead of 0.055/h.)
 
 ## 10. Last verified
 
@@ -442,4 +486,4 @@ X-Ray traces expire on their own (30-day retention) and aren't billed for storag
 - **Verified by:** —
 - **Region:** `us-east-1`
 - **Versions:** Terraform 1.17.2 · AWS provider ~> 6.73 · AWS CLI 2.33.14 · Python 3.12 · boto3 1.44.4 · opentelemetry-sdk / exporter-otlp 1.45.2 · opentelemetry-instrumentation-fastapi 0.66b2 · opentelemetry-sdk-extension-aws 2.1.0 · opentelemetry-propagator-aws-xray 1.0.2 · ADOT collector `v0.51.0`
-- **Notes:** versions read from PyPI and GitHub release APIs on 2026-11-17. No command run against AWS. Composite-alarm timing and ADOT default config marked `TODO(verify)`. Written against `phases/phase-2/CONTRACT.md`; the `enable_tracing` input is added to the contract's ecs-service module by Lab 4.
+- **Notes:** versions read from PyPI and GitHub release APIs on 2026-11-17. No command run against AWS. Composite-alarm timing marked `TODO(verify)`; ADOT default config and `aws_region.region` confirmed by the qa agent on 2026-11-17. Written against `phases/phase-2/CONTRACT.md`; the `enable_tracing` input is added to the contract's ecs-service module by Lab 4.
