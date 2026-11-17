@@ -37,8 +37,8 @@ Set up an AWS account that warns you before money surprises you: root locked wit
 | EC2 `t3.micro` (Lab 7) | yes, per second while running | USD 0.0104/hour | ≤ 30 min | ≤ USD 0.006 |
 | EBS gp3 root volume, 8 GiB (Lab 7) | yes, while it exists | USD 0.08/GB-month | ≤ 30 min | ≤ USD 0.001 |
 | Public IPv4 address (Lab 7) | yes, while attached | USD 0.005/hour | ≤ 30 min | ≤ USD 0.003 |
-| CloudWatch alarms (Lab 4, `us-east-1`) | yes, monthly | USD 0.10 per alarm-month; first 10 alarms free | 1 kept | USD 0 (within the 10 free) |
-| CloudWatch alarm + SNS topic (debugging lab, **`eu-west-1`** and `us-east-1`) | alarm: monthly | Same as above; topics have no idle charge | 1–2 alarms for < 1 hour, deleted in the lab's teardown | USD 0 (within the 10 free) |
+| CloudWatch alarms (Lab 4, `us-east-1`) | yes, monthly | USD 0.10 per alarm metric per month; free tier covers **10 alarm metrics** (a simple alarm = 1 metric; a metric-math alarm counts each metric it uses) | 1 kept (1 metric) | USD 0 (within the free 10) |
+| CloudWatch alarm + SNS topic (debugging lab, **`eu-west-1`** and `us-east-1`) | alarm: monthly | Same as above; topics have no idle charge | 1–2 alarms (1 metric each) for < 1 hour, deleted in the lab's teardown | USD 0 (within the free 10) |
 | SNS email notifications | per message | First 1,000 email deliveries/month free | < 20 | USD 0 |
 | AWS Budgets (Lab 5) | — | Budgets without actions are free ([Budgets pricing](https://aws.amazon.com/aws-cost-management/aws-budgets/pricing/)) | 1 budget, no actions | USD 0 |
 | Cost Anomaly Detection (Lab 6) | — | No charge ([Anomaly Detection FAQ](https://aws.amazon.com/aws-cost-management/aws-cost-anomaly-detection/faqs/)) | 1 monitor, 1 subscription | USD 0 |
@@ -118,7 +118,7 @@ AWS runs in many **regions** (e.g. `us-east-1` = N. Virginia). Most resources li
 >
 > **Where to type commands (Labs 3–7):**
 > - **Option A — your own computer** after Lab 3, with `export AWS_PROFILE=p0-admin` run once per terminal.
-> - **Option B — AWS CloudShell:** sign in to the console as your IAM admin user, set the region to **N. Virginia (us-east-1)**, click the CloudShell icon (a `>_` symbol in the top bar). It's already signed in as you — skip `AWS_PROFILE`. Works on any OS, including Windows.
+> - **Option B — AWS CloudShell:** sign in to the console as your IAM admin user, set the region to **N. Virginia (us-east-1)**, click the CloudShell icon (a `>_` symbol in the top bar). It's already signed in as you — skip `AWS_PROFILE`. Works on any OS, including Windows. CloudShell's AWS CLI version is chosen by AWS, not pinned by this course: run `aws --version` once and write it down (it must be **2.32.0 or later** for `aws login`; any version works for the other labs).
 >
 > Before each lab, run: `export AWS_REGION=us-east-1`
 
@@ -321,7 +321,7 @@ aws cloudwatch set-alarm-state --alarm-name p0-billing-over-5usd \
 ```
 
 - **Teardown command:** none — **keep this alarm for the whole course.** (Only if you are closing the account: look up `TOPIC_ARN` as in the verification block, then `aws cloudwatch delete-alarms --alarm-names p0-billing-over-5usd && aws sns delete-topic --topic-arn "$TOPIC_ARN"`.)
-- **Cost note:** USD 0 within the first 10 free alarms; otherwise USD 0.10/month.
+- **Cost note:** USD 0 within the free tier's 10 alarm metrics (this alarm uses 1); otherwise USD 0.10/month.
 
 ### Lab 5 — AWS Budget with alerts at 50 / 80 / 100%
 
@@ -375,7 +375,7 @@ aws budgets describe-notifications-for-budget --account-id "$ACCOUNT_ID" --budge
 ```
 
 - **Teardown command:** none — **keep it.** (Only if closing the account: `aws budgets delete-budget --account-id "$ACCOUNT_ID" --budget-name p0-monthly-5usd`.)
-- **Cost note:** USD 0 (assumption: budgets without actions are free — see Cost estimate).
+- **Cost note:** USD 0 — budgets without actions are free ([Budgets pricing](https://aws.amazon.com/aws-cost-management/aws-budgets/pricing/)).
 
 ### Lab 6 — Cost Anomaly Detection
 
@@ -557,7 +557,7 @@ aws sns list-topics --region eu-west-1 --query "Topics[?contains(TopicArn, 'p0-d
 # expect: no output from either
 ```
 
-- **Teardown:** (run after "Done when" passes — removes debug resources in both regions. If an alarm is already gone, `delete-alarms` may print a not-found error; that's harmless — the confirm loop is what counts. TODO(verify): exact behaviour on a missing alarm.)
+- **Teardown:** (run after "Done when" passes — removes debug resources in both regions. If an alarm is already gone, `delete-alarms` may print a not-found error; that's harmless (names that do exist are still deleted — [DeleteAlarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DeleteAlarms.html)); the confirm loop is what counts.)
 
 ```bash
 for r in us-east-1 eu-west-1; do
@@ -610,12 +610,8 @@ done
 #    If a volume prints:    aws ec2 delete-volume --region <region> --volume-id <id>
 #    (This module never allocates an Elastic IP; if one prints, it isn't from this module — find out what it is.)
 
-# 2. Debugging lab — remove p0-debug-* in both regions (a not-found error here is harmless)
-for r in us-east-1 eu-west-1; do
-  aws cloudwatch delete-alarms --region "$r" --alarm-names p0-debug-billing-alarm
-  T="$(aws sns list-topics --region "$r" --query "Topics[?ends_with(TopicArn, ':p0-debug-billing-alerts')].TopicArn" --output text)"
-  [ -n "$T" ] && aws sns delete-topic --region "$r" --topic-arn "$T"
-done
+# 2. Debugging lab — if you haven't already, run the Teardown block in section 7.
+#    The confirm step below checks both regions for anything left.
 ```
 
 **Confirm nothing is left and the guardrails are OK** (the Module 0.0 gate):
