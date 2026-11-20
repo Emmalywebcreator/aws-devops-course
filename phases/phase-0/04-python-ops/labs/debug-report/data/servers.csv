@@ -1,0 +1,4 @@
+name,env,role
+web-1,staging,web
+db-1,staging,database
+web-2,prod,web
